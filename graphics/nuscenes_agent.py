@@ -2,10 +2,10 @@ import os
 import json
 
 
-from external_libs.nuscenes.nuscenes import NuScenes
-from external_libs.nuscenes.prediction import PredictHelper
-from external_libs.nuscenes.map_expansion.map_api import NuScenesMap
-from external_libs.nuscenes.can_bus.can_bus_api import NuScenesCanBus
+from nuscenes.nuscenes import NuScenes
+from nuscenes.prediction import PredictHelper
+from nuscenes.map_expansion.map_api import NuScenesMap
+from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 
 #import logging
 from loguru import logger

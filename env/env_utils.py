@@ -1,7 +1,7 @@
 import numpy as np
-from external_libs.nuscenes.prediction.helper import angle_of_rotation
-from external_libs.nuscenes.eval.common.utils import quaternion_yaw
-from external_libs.nuscenes.map_expansion import arcline_path_utils
+from nuscenes.prediction.helper import angle_of_rotation
+from nuscenes.eval.common.utils import quaternion_yaw
+from nuscenes.map_expansion import arcline_path_utils
 from pyquaternion import Quaternion
 import tqdm
 from typing import Tuple

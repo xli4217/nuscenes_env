@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 import time
-from external_libs.nuscenes.prediction.helper import angle_of_rotation
-from external_libs.nuscenes.eval.common.utils import quaternion_yaw
+from nuscenes.prediction.helper import angle_of_rotation
+from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
 from typing import Tuple, Dict, Callable
 import importlib

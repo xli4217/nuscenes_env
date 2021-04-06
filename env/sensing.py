@@ -20,14 +20,14 @@ from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 import shapely
 
-from external_libs.nuscenes.prediction.helper import angle_of_rotation
-from external_libs.nuscenes.eval.common.utils import quaternion_yaw
+from nuscenes.prediction.helper import angle_of_rotation
+from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
 
-from external_libs.nuscenes import NuScenes
-from external_libs.nuscenes.map_expansion.map_api import NuScenesMap
-from external_libs.nuscenes.map_expansion import arcline_path_utils
-from external_libs.nuscenes.prediction import PredictHelper, convert_local_coords_to_global, convert_global_coords_to_local
+from nuscenes import NuScenes
+from nuscenes.map_expansion.map_api import NuScenesMap
+from nuscenes.map_expansion import arcline_path_utils
+from nuscenes.prediction import PredictHelper, convert_local_coords_to_global, convert_global_coords_to_local
 import descartes
 
 from graphics.nuscenes_agent import NuScenesAgent
