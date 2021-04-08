@@ -7,6 +7,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from PIL import Image
 import cv2
 import io
+import seaborn as sns
 import sklearn
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -153,6 +154,8 @@ class SceneGraphics(NuScenesAgent):
                        text_box=False,
                        plot_list=None,
                        ego_traj=None,
+                       ado_traj=None,
+                       contour=None,
                        read_from_cached=False,
                        paper_ready=False
     ):
@@ -162,6 +165,15 @@ class SceneGraphics(NuScenesAgent):
            <name>: {
             'traj': <traj>,
             'color': <color>
+          }
+        }
+
+        ado_traj = {
+          <instance_token>: {
+             "traj_dist": [[mean, cov], [], ...],
+             "frame": <"local" or "global">,
+             "pos": <np.ndarray or list>, # global coordinate of origin
+             "quat": <np.ndarray or list> # global rotation of origin
           }
         }
         '''
@@ -195,7 +207,15 @@ class SceneGraphics(NuScenesAgent):
                 sim_ego = ego_traj['sim_ego']
                 if sim_ego is not None:
                     self.plot_elements(sim_ego['pos'], sim_ego['yaw'], 'sim_ego', ax, animated_agent=paper_ready)
-        
+
+        #### plot ado traj ####
+        if ado_traj is not None:
+            self.plot_trajectory_distributions(ax, ado_traj)
+
+        #### plot contour ####
+        if contour is not None:
+            self.plot_contour(ax, contour)
+            
         #### save stuff ####
         if save_pkl_dir is not None:
             with open(p, 'wb') as f:
@@ -204,11 +224,12 @@ class SceneGraphics(NuScenesAgent):
             
         if save_img_dir is not None:
             p = os.path.join(save_img_dir, idx+"_"+sample_token+"_birdseye.png")
-            fig.savefig(p, dpi=300, quality=95)
+            #fig.savefig(p, dpi=300, quality=95)
+            fig.savefig(p)
             if 'cam' in plot_list:
                 p = os.path.join(save_img_dir, idx+"_"+sample_token+"_camera.png")
-                other['sfig'].savefig(p, dpi=300, quality=95)
-            
+                #other['sfig'].savefig(p, dpi=300, quality=95)
+                other['sfig'].savefig(p)
         return fig, ax
         
     def plot_agent_scene(self,
@@ -497,6 +518,30 @@ class SceneGraphics(NuScenesAgent):
         ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props)
 
 
+    def plot_contour(self, ax, contour):
+        X = contour['X']
+        Y = contour['Y']
+        Z = contour['Z']
+        levels = contour['levels']
+        transform = contour['transform']
+
+        X_global = X
+        Y_global = Y
+        # if transform is not None:
+        #     Coord_local = np.concatenate([np.expand_dims(X, axis=0),
+        #                                   np.expand_dims(Y, axis=0)], axis=0)
+        #     coord_global = convert_local_coords_to_global(Coord_local.reshape(2, -1).T, transform['translation'], transform['rotation'])
+            
+        #     X_global = []
+        #     Y_global = []
+        #     for i in range(0, coord_global.shape[0], X.shape[1]):
+        #         X_global.append(coord_global[i:i+X.shape[1], 0].tolist())
+        #         Y_global.append(coord_global[i:i+X.shape[1], 1].tolist())
+        #     X_global = np.array(X_global)
+        #     Y_global = np.array(Y_global)    
+
+        cp = ax.contourf(X_global, Y_global, Z, levels, zorder=100, alpha=0.5, cmap='Reds',linewidths=3, extend='max')
+
     def plot_sensor_info(self, ax, sensor_info,text_box=True):
         #### plot sensing patch ####
         sensing_patch = sensor_info['sensing_patch']['polygon']
@@ -519,9 +564,8 @@ class SceneGraphics(NuScenesAgent):
         #### plot agents ####
         agent_info = sensor_info['agent_info']
         for agent in agent_info:
-            if ('vehicle' in agent['category'] and 'parked' not in agent['attribute']) or ('pedestrian' in agent['category'] and 'stroller' not in agent['category'] and 'wheelchair' not in agent['category']):
-                agent_pos = agent['translation'][:2]
-                ax.plot([ego_pos[0], agent_pos[0]], [ego_pos[1], agent_pos[1]], c='black')
+            agent_pos = agent['translation'][:2]
+            ax.plot([ego_pos[0], agent_pos[0]], [ego_pos[1], agent_pos[1]], c='black')
         
         #### plot map info ####
         
@@ -676,6 +720,27 @@ class SceneGraphics(NuScenesAgent):
                 ax.scatter(traj_dict['traj'][:,0], traj_dict['traj'][:,1], c=traj_dict['color'], s=60, zorder=80)
                     
         return pos, ego_pose['rotation']
+
+    def plot_trajectory_distributions(self, ax, traj_dist_dict):
+        '''
+        traj_dist_dict = {
+            <instance_sample_token>: {"traj_dist": [[mean, cov], [], ...],
+                                      "frame": <"local" or "global">,
+                                      "pos": <np.ndarray or list>, # global coordinate of origin
+                                      "quat": <np.ndarray or list> # global rotation of origin
+
+                                      }
+        }
+    
+        '''
+        for k, v in traj_dist_dict.items():
+            traj_dist = v['traj_dist']
+            for dist in traj_dist:
+                mean, cov = dist
+                if v['frame'] == 'local':
+                    mean = convert_local_coords_to_global(np.array(mean), v['pos'], v['quat'])
+                x, y = np.random.multivariate_normal(mean, cov, size=100).T
+                sns.kdeplot(x=x,y=y, cmap='Blues', ax=ax)
         
     def plot_road_agents(self,
                          ax,

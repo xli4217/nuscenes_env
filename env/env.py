@@ -81,6 +81,9 @@ class NuScenesEnv(NuScenesAgent):
 
         #### sensor info ####
         sensor_info = self.sensor.get_info(self.sample['token'], ego_pos=self.sim_ego_pos_gb, ego_quat=self.sim_ego_quat_gb)
+
+        filtered_agent_info = self.filter_agent_info(sensor_info['agent_info'])
+        sensor_info['agent_info'] = filtered_agent_info
         self.all_info['sensor_info'] = sensor_info
 
         
@@ -103,7 +106,17 @@ class NuScenesEnv(NuScenesAgent):
     def get_observation(self):
         return self.all_info
 
-    def render(self):
+    def filter_agent_info(self, agent_info):
+        filtered_agent_info = []
+
+        for agent in agent_info:
+            #if ('vehicle' in agent['category'] and 'parked' not in agent['attribute']) or ('pedestrian' in agent['category'] and 'stroller' not in agent['category'] and 'wheelchair' not in agent['category']):
+            if ('vehicle' in agent['category'] and 'parked' not in agent['attribute']):
+                filtered_agent_info.append(agent)
+
+        return filtered_agent_info
+        
+    def render(self, render_info={}):
         if 'image' in self.config['render_type']:
             sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
             sim_ego_yaw = quaternion_yaw(sim_ego_yaw)
@@ -131,12 +144,28 @@ class NuScenesEnv(NuScenesAgent):
             sensor_info = None
             if 'sensor_info' in self.config['render_elements']:
                 sensor_info = self.all_info['sensor_info']
-            fig, ax = self.graphics.plot_ego_scene(sample_token=self.sample['token'], ego_traj=ego_traj, save_img_dir=save_img_dir, idx=str(self.sample_idx).zfill(2), sensor_info=sensor_info, paper_ready=self.config['render_paper_ready'])
+
+            ado_traj_dict = None
+            if 'ado_traj_dict' in render_info.keys():
+                ado_traj_dict = render_info['ado_traj_dict']
+
+            costmap_contour = None
+            if 'costmap_contour' in render_info.keys():
+                costmap_contour = render_info['costmap_contour']
+    
+            fig, ax = self.graphics.plot_ego_scene(sample_token=self.sample['token'],
+                                                   ego_traj=ego_traj,
+                                                   ado_traj=ado_traj_dict,
+                                                   contour=costmap_contour,
+                                                   save_img_dir=save_img_dir,
+                                                   idx=str(self.sample_idx).zfill(2),
+                                                   sensor_info=sensor_info,
+                                                   paper_ready=self.config['render_paper_ready'])
             plt.show()
             
-    def step(self, action:np.ndarray=None):
+    def step(self, action:np.ndarray=None, render_info={}):
         if len(self.config['render_type']) > 0:
-            self.render()
+            self.render(render_info)
 
         
         if self.config['control_mode'] == 'position':
