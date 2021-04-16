@@ -216,7 +216,7 @@ def draw_agent_boxes(center_agent_annotation: Dict[str, Any],
 
         cv2.fillPoly(base_image, pts=[np.int0(box)], color=color)
 
-        
+
     # plot edo
     for instance_token, annotations in agent_history.items():
 

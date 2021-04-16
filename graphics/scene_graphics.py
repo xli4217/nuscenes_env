@@ -157,7 +157,8 @@ class SceneGraphics(NuScenesAgent):
                        ado_traj=None,
                        contour=None,
                        read_from_cached=False,
-                       paper_ready=False
+                       paper_ready=False,
+                       other_images_to_be_saved=None
     ):
 
         '''
@@ -230,6 +231,12 @@ class SceneGraphics(NuScenesAgent):
                 p = os.path.join(save_img_dir, idx+"_"+sample_token+"_camera.png")
                 #other['sfig'].savefig(p, dpi=300, quality=95)
                 other['sfig'].savefig(p)
+
+            if other_images_to_be_saved is not None:
+                for k, v in other_images_to_be_saved.items():
+                    p = os.path.join(save_img_dir, idx+"_"+sample_token+"_"+k+".png")
+                    plt.imsave(p, v)
+                    
         return fig, ax
         
     def plot_agent_scene(self,

@@ -138,16 +138,56 @@ class Sensor(NuScenesAgent):
                                      ego_yaw_degrees,
                                      nusc_map,
                                      sensing_patch)
+
+        # get canbus info
+        can_info = self.get_can_info(scene['name'])
         
         sensing_info = {
             'sample_token':sample_token,
             'sensing_patch':sensing_patch_info,
             'ego_info': ego_info,
             'agent_info':agent_info,
-            'map_info': map_info
+            'map_info': map_info,
+            'can_info': can_info
         }
         
         return sensing_info
+
+    def get_can_info(self, scene_name:str=None):
+        pose_msg = self.nusc_can.get_messages(scene_name, 'pose')
+        ego_accel_traj = [pm['accel'] for pm in pose_msg][::25]
+        ego_quat_traj = [pm['orientation'] for pm in pose_msg][::25]
+        ego_pos_traj = [pm['pos'] for pm in pose_msg][::25]
+        ego_rotation_rate_traj = [pm['rotation_rate'] for pm in pose_msg][::25]
+        ego_speed_traj = [pm['vel'] for pm in pose_msg][::25]
+    
+        # Vehicle Monitor message information (original message 2hz, no need to down sample)
+        veh_monitor = self.nusc_can.get_messages(scene_name, 'vehicle_monitor')
+        ego_speed_traj = [vm['vehicle_speed']*0.28 for vm in veh_monitor]
+        ego_steering_deg_traj = [vm['steering'] for vm in veh_monitor]
+
+        # get high level ego motion
+        steer = np.array(ego_steering_deg_traj)
+        argmax_steer = np.argmax(np.abs(steer))
+        max_abs_steer = np.abs(steer)[argmax_steer]
+        max_steer_sgn = np.sign(steer[argmax_steer])
+        if max_abs_steer > 50:
+            if max_steer_sgn > 0:
+                ego_high_level_motion = 'LeftTurn'
+            else:
+                ego_high_level_motion = 'RightTurn'
+        else:
+            ego_high_level_motion = 'Straight'
+
+        return {
+            'ego_accel_traj': ego_accel_traj,
+            'ego_quat_traj':ego_quat_traj,
+            'ego_pos_traj':ego_pos_traj,
+            'ego_rotation_rate_traj':ego_rotation_rate_traj,
+            'ego_speed_traj':ego_speed_traj,
+            'ego_steering_deg_traj':ego_steering_deg_traj,
+            'ego_high_level_motion': ego_high_level_motion
+        }
         
     def get_agent_info(self, sample, sensing_patch):
         agent_info = []
