@@ -132,7 +132,7 @@ class NuScenesEnv(NuScenesAgent):
         #### rasterized image (TODO: support for sim ego and ado) ####
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
             #### ego raster img ####
-            ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True)
+            ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=ego_pose)
             ego_raster_img = np.transpose(ego_raster_img, (2,0,1))
             self.all_info['raster_image'] = ego_raster_img
 
@@ -300,24 +300,32 @@ class NuScenesEnv(NuScenesAgent):
         camera_img_list =  [p for p in img_fn_list if 'camera' in p and 'checkpoint' not in p]
         camera_idx = np.argsort(np.array([int(p[:2]) for p in camera_img_list]))
         camera_img_list = np.array(camera_img_list)[camera_idx]
+
+        raster_img_list =  [p for p in img_fn_list if 'raster' in p and 'checkpoint' not in p]
+        raster_idx = np.argsort(np.array([int(p[:2]) for p in raster_img_list]))
+        raster_img_list = np.array(raster_img_list)[raster_idx]
  
  
         fig = plt.figure(figsize=(15, 15), constrained_layout=False)
         gs = fig.add_gridspec(nrows=6, ncols=6, wspace=0.01)
         ax1 = fig.add_subplot(gs[:4, :6]) # bird-view
-        ax2 = fig.add_subplot(gs[4:, :6]) # front camera
+        ax2 = fig.add_subplot(gs[4:, :4]) # front camera
+        ax3 = fig.add_subplot(gs[4:, 4:6]) # raster
         ax1.axis('off')
         ax2.axis('off')
+        ax3.axis('off')
 
         i = 0
         camera = Camera(fig)
-        for p_birdseye, p_camera in tqdm.tqdm(zip(birdseye_img_list, camera_img_list)):
+        for p_birdseye, p_camera, p_raster in tqdm.tqdm(zip(birdseye_img_list, camera_img_list, raster_img_list)):
             # if i > 2:
             #     break
             birdseye_img = plt.imread(os.path.join(image_dir, p_birdseye))
             camera_img = plt.imread(os.path.join(image_dir, p_camera))
+            raster_img = plt.imread(os.path.join(image_dir, p_raster))
             ax1.imshow(birdseye_img)
             ax2.imshow(camera_img)
+            ax3.imshow(raster_img)
             camera.snap()
 
         animation = camera.animate()
