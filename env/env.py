@@ -96,6 +96,8 @@ class NuScenesEnv(NuScenesAgent):
         self.ego_yaw = quaternion_yaw(ego_yaw)
         #self.ego_yaw = angle_of_rotation(ego_yaw)
 
+        self.all_info['ego_init_pos_gb'] = np.array(self.init_ego_pos)
+        self.all_info['ego_init_quat_gb'] = np.array(self.init_ego_quat)
         self.all_info['ego_pos_gb'] = np.array(ego_pose['translation'])[:2]
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
@@ -186,6 +188,10 @@ class NuScenesEnv(NuScenesAgent):
 
             self.true_ego_pos_traj.append(pose_record['translation'])
             self.true_ego_quat_traj.append(pose_record['rotation'])
+
+        self.init_ego_pos = self.true_ego_pos_traj[0]
+        self.init_ego_quat = self.true_ego_quat_traj[0]
+
             
         self.update_all_info()
         return self.get_observation()
@@ -285,9 +291,9 @@ class NuScenesEnv(NuScenesAgent):
 
         if not done:
             self.sample = self.nusc.get('sample', self.sample['next'])
-        self.sample_idx += 1
+
         self.update_all_info()
-        
+        self.sample_idx += 1
         return self.get_observation(), done
         
 
@@ -301,31 +307,32 @@ class NuScenesEnv(NuScenesAgent):
         camera_idx = np.argsort(np.array([int(p[:2]) for p in camera_img_list]))
         camera_img_list = np.array(camera_img_list)[camera_idx]
 
-        raster_img_list =  [p for p in img_fn_list if 'raster' in p and 'checkpoint' not in p]
-        raster_idx = np.argsort(np.array([int(p[:2]) for p in raster_img_list]))
-        raster_img_list = np.array(raster_img_list)[raster_idx]
+        # raster_img_list =  [p for p in img_fn_list if 'raster' in p and 'checkpoint' not in p]
+        # raster_idx = np.argsort(np.array([int(p[:2]) for p in raster_img_list]))
+        # raster_img_list = np.array(raster_img_list)[raster_idx]
  
  
         fig = plt.figure(figsize=(15, 15), constrained_layout=False)
         gs = fig.add_gridspec(nrows=6, ncols=6, wspace=0.01)
         ax1 = fig.add_subplot(gs[:4, :6]) # bird-view
         ax2 = fig.add_subplot(gs[4:, :4]) # front camera
-        ax3 = fig.add_subplot(gs[4:, 4:6]) # raster
+        #ax3 = fig.add_subplot(gs[4:, 4:6]) # raster
         ax1.axis('off')
         ax2.axis('off')
-        ax3.axis('off')
+        #ax3.axis('off')
 
         i = 0
         camera = Camera(fig)
-        for p_birdseye, p_camera, p_raster in tqdm.tqdm(zip(birdseye_img_list, camera_img_list, raster_img_list)):
+        #for p_birdseye, p_camera, p_raster in tqdm.tqdm(zip(birdseye_img_list, camera_img_list, raster_img_list)):
+        for p_birdseye, p_camera in tqdm.tqdm(zip(birdseye_img_list, camera_img_list)):
             # if i > 2:
             #     break
             birdseye_img = plt.imread(os.path.join(image_dir, p_birdseye))
             camera_img = plt.imread(os.path.join(image_dir, p_camera))
-            raster_img = plt.imread(os.path.join(image_dir, p_raster))
+            #raster_img = plt.imread(os.path.join(image_dir, p_raster))
             ax1.imshow(birdseye_img)
             ax2.imshow(camera_img)
-            ax3.imshow(raster_img)
+            #ax3.imshow(raster_img)
             camera.snap()
 
         animation = camera.animate()

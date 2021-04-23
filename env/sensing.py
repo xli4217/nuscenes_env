@@ -110,8 +110,8 @@ class Sensor(NuScenesAgent):
         ]
 
         ## generate sensing patch mesh
-        x = np.arange(sensing_patch_coord_before_rotation[0], sensing_patch_coord_before_rotation[2])
-        y = np.arange(sensing_patch_coord_before_rotation[1], sensing_patch_coord_before_rotation[3])
+        x = np.arange(sensing_patch_coord_before_rotation[0], sensing_patch_coord_before_rotation[2], 0.2)
+        y = np.arange(sensing_patch_coord_before_rotation[1], sensing_patch_coord_before_rotation[3], 0.2)
 
         X, Y = np.meshgrid(x, y)
         ### apply rotation

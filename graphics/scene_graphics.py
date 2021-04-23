@@ -547,7 +547,7 @@ class SceneGraphics(NuScenesAgent):
         #     X_global = np.array(X_global)
         #     Y_global = np.array(Y_global)    
 
-        cp = ax.contourf(X_global, Y_global, Z, levels, zorder=100, alpha=0.5, cmap='Reds',linewidths=3, extend='max')
+        cp = ax.contourf(X_global, Y_global, Z, levels, zorder=100, alpha=0.5, cmap='Reds',linewidths=3)
 
     def plot_sensor_info(self, ax, sensor_info,text_box=True):
         #### plot sensing patch ####
