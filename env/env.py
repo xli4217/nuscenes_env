@@ -39,7 +39,7 @@ class NuScenesEnv(NuScenesAgent):
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
-            'render_elements': [], # can contain ['sensor_info']
+            'render_elements': ['sim_ego'], # can contain ['sensor_info', 'sim_ego']
             'save_image_dir': None,
             'scenes_range': [0,10],
             # contains ['center lane', 'raster_image']
@@ -215,19 +215,21 @@ class NuScenesEnv(NuScenesAgent):
             sim_ego_yaw = quaternion_yaw(sim_ego_yaw)
             sim_ego_yaw = angle_of_rotation(sim_ego_yaw)
             sim_ego_yaw = np.rad2deg(sim_ego_yaw)
-            
-            ego_traj = {
-                # 'lane': {
-                #     'traj': self.all_info['future_lanes'][0],
-                #     'color': 'green'
-                # },
-                'sim_ego':{
-                    'pos': self.sim_ego_pos_gb,
-                    'yaw': sim_ego_yaw,
-                    'traj': np.zeros((4,2)),
-                    'color': 'yellow'
+
+            ego_traj = None
+            if 'sim_ego' in self.config['render_elements']:
+                ego_traj = {
+                    # 'lane': {
+                    #     'traj': self.all_info['future_lanes'][0],
+                    #     'color': 'green'
+                    # },
+                    'sim_ego':{
+                        'pos': self.sim_ego_pos_gb,
+                        'yaw': sim_ego_yaw,
+                        'traj': np.zeros((4,2)),
+                        'color': 'yellow'
+                    }
                 }
-            }
 
             if self.config['save_image_dir'] is not None:
                 save_img_dir = os.path.join(self.config['save_image_dir'], str(self.scene['name']))
@@ -251,7 +253,13 @@ class NuScenesEnv(NuScenesAgent):
                 other_images_to_be_saved = {
                     'raster': np.transpose(self.all_info['sim_ego_raster_image'], (1,2,0))
                 }
-            
+
+            render_additional = None
+            if 'lines' in render_info.keys():
+                render_additional['lines'] = render_info['lines']
+            if 'scatters' in render_info.keys():
+                render_additional['scatters'] = render_info['scatters']
+                
             fig, ax = self.graphics.plot_ego_scene(sample_token=self.sample['token'],
                                                    ego_traj=ego_traj,
                                                    ado_traj=ado_traj_dict,
@@ -260,7 +268,8 @@ class NuScenesEnv(NuScenesAgent):
                                                    idx=str(self.sample_idx).zfill(2),
                                                    sensor_info=sensor_info,
                                                    paper_ready=self.config['render_paper_ready'],
-                                                   other_images_to_be_saved=other_images_to_be_saved
+                                                   other_images_to_be_saved=other_images_to_be_saved,
+                                                   render_additional = render_additional
             )
             plt.show()
             

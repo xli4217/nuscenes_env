@@ -158,7 +158,8 @@ class SceneGraphics(NuScenesAgent):
                        contour=None,
                        read_from_cached=False,
                        paper_ready=False,
-                       other_images_to_be_saved=None
+                       other_images_to_be_saved=None,
+                       render_additional=None
     ):
 
         '''
@@ -198,7 +199,8 @@ class SceneGraphics(NuScenesAgent):
                                                plot_list=plot_list,
                                                ego_traj=ego_traj,
                                                read_from_cached=read_from_cached,
-                                               paper_ready=paper_ready
+                                               paper_ready=paper_ready,
+                                               render_additional=render_additional
         )
 
 
@@ -261,7 +263,9 @@ class SceneGraphics(NuScenesAgent):
                          bfig=None, # for birdseye image
                          bax=None,
                          sfig=None, # for camera
-                         sax=None):
+                         sax=None,
+                         render_additional=None
+    ):
 
         if paper_ready:
             legend = False
@@ -446,7 +450,10 @@ class SceneGraphics(NuScenesAgent):
             sfig, sax = None, None
             cam_fig, cam_ax = None, None
 
-                
+        #### render additional outside information ####
+        if render_additional is not None:
+            self.render_additional(ax, render_additional)
+            
         if not show_axis:
             plt.axis('off')
             plt.grid('off')
@@ -456,7 +463,28 @@ class SceneGraphics(NuScenesAgent):
 
         other = {'cam_fig': cam_fig, 'cam_ax': cam_ax, 'sfig': sfig, 'sax': sax}
         return fig, ax, other
-        
+
+    def render_additional(self, ax, render_dict:dict=None):
+        if 'lines' in render_dict.keys():
+            # lines = [
+            #     {
+            #         'start': <2x1 vector>,
+            #         'end': <2x1 vector>
+            #         'color': <color>
+            #     }
+            # ]
+            for l in render_dict['lines']:
+                ax.plot([l['start'][0], l['end'][0]], [l['start'][1], l['end'][1]], c=l['color'])
+        if 'scatters' in render_dict.keys():
+            # scatters = [
+            #     {
+            #         'traj': <nx2 matrix>,
+            #         'color': <color>
+            #     }
+            # ]
+            for s in render_dict['scatters']:
+                ax.scatter(s['traj'][:,0], s['traj'][:,1], color=s['color'], s=30, zorder=700)
+            
     def in_my_patch(self, pos, my_patch):
         if pos[0] > my_patch[0] and pos[1] > my_patch[1] and pos[0] < my_patch[2] and pos[1] < my_patch[3]:
             return True
