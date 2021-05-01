@@ -75,14 +75,15 @@ class SceneGraphics(NuScenesAgent):
             'road_divider',
             'lane_divider',
             'drivable_area',
-            'road_segment',
-            'road_block',
+            #'road_segment',
+            #'road_block',
             'lane',
-            'ped_crossing',
+            #'ped_crossing',
             'walkway',
-            'stop_line',
-            'carpark_area',
-            'traffic_light']
+            #'stop_line',
+            #'carpark_area',
+            #'traffic_light'
+        ]
 
         self.plot_list = ['ego', 'other_cars', 'pedestrian', 'cam',
                           'labeled_map', 'sensing_patch', 'sensor_info']
@@ -274,10 +275,10 @@ class SceneGraphics(NuScenesAgent):
             render_ego_pose_range = False
             plot_agent_trajs=False
             animated_agent=True
-            
+
         if map_layers is None:
             map_layers = self.map_layers
-
+            
         if plot_list is None:
             plot_list = self.plot_list
 

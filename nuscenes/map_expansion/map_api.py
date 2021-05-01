@@ -734,22 +734,27 @@ class NuScenesMapExplorer:
         """
         # Mutable default argument.
         if color_map is None:
-            color_map = dict(drivable_area='#a6cee3',
-                             road_segment='#1f78b4',
-                             road_block='#b2df8a',
-                             lane='#33a02c',
-                             #ped_crossing='#fb9a99',
-                             ped_crossing='blue',
-                             #walkway='#e31a1c',
-                             walkway='magenta',
-                             #stop_line='#fdbf6f',
-                             stop_line='red',
-                             carpark_area='#ff7f00',
-                             #road_divider='#cab2d6',
-                             road_divider='black',
-                             lane_divider='#6a3d9a',
-                             #traffic_light='#7e772e'
-                             traffic_light='yellow'
+            color_map = dict(
+                #drivable_area='#a6cee3',
+                drivable_area='lightgrey',
+                #road_segment='#1f78b4',
+                road_segment='lightgray',
+                #road_block='#b2df8a',
+                road_block='lightgray',
+                #lane='#33a02c',
+                lane='lightgray',
+                #ped_crossing='#fb9a99',
+                ped_crossing='blue',
+                #walkway='#e31a1c',
+                walkway='lightgray',
+                #stop_line='#fdbf6f',
+                stop_line='red',
+                carpark_area='#ff7f00',
+                #road_divider='#cab2d6',
+                road_divider='black',
+                lane_divider='#6a3d9a',
+                #traffic_light='#7e772e'
+                traffic_light='yellow'
             )
 
         self.map_api = map_api
