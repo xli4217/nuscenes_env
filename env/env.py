@@ -87,10 +87,16 @@ class NuScenesEnv(NuScenesAgent):
         #### sample info ####
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['sample_token'] = self.sample['token']
-        
-        sample_data = self.helper.data.get('sample_data', self.sample['data']['CAM_FRONT'])
-        ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
 
+        if self.instance_token is None:
+            sample_data = self.helper.data.get('sample_data', self.sample['data']['CAM_FRONT'])
+            ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
+        else:
+            ego_pose = {
+                'translation': self.inst_ann['translation'],
+                'rotation': self.inst_ann['rotation']
+            }
+            
         #### ego pose ####
         ego_yaw = Quaternion(ego_pose['rotation'])
         self.ego_yaw = quaternion_yaw(ego_yaw)
@@ -125,7 +131,11 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
         #### sensor info ####
-        sensor_info = self.sensor.get_info(self.sample['token'], ego_pos=self.sim_ego_pos_gb, ego_quat=self.sim_ego_quat_gb)
+        if self.instance_token is None:
+            instance_based = False
+        else:
+            instance_based = True
+        sensor_info = self.sensor.get_info(self.sample['token'], ego_pos=self.sim_ego_pos_gb, ego_quat=self.sim_ego_quat_gb, instance_based=instance_based)
 
         filtered_agent_info = self.filter_agent_info(sensor_info['agent_info'])
         sensor_info['agent_info'] = filtered_agent_info
@@ -147,8 +157,7 @@ class NuScenesEnv(NuScenesAgent):
             sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
 
-            
-    def reset(self, scene_name=None, scene_idx=None):
+    def reset_ego(self, scene_name=None, scene_idx=None):
         if scene_name is None and scene_idx is None:
             scene_list = np.arange(self.config['scenes_range'][0], self.config['scenes_range'][1])
             scene_idx = np.random.choice(scene_list)
@@ -170,29 +179,69 @@ class NuScenesEnv(NuScenesAgent):
         self.sample_token = self.scene['first_sample_token']
         self.sample = self.nusc.get('sample', self.sample_token)
 
-        self.sim_ego_pos_gb = None
-        self.sim_ego_quat_gb = None
-
-        self.sample_idx = 0
-
         #### get ego traj ####
         sample_tokens = self.nusc.field2token('sample', 'scene_token', self.scene['token'])
         self.true_ego_pos_traj = []
         self.true_ego_quat_traj = []
         for sample_token in sample_tokens:
             sample_record = self.nusc.get('sample', sample_token)
-
+                
             # Poses are associated with the sample_data. Here we use the lidar sample_data.
             sample_data_record = self.nusc.get('sample_data', sample_record['data']['LIDAR_TOP'])
             pose_record = self.nusc.get('ego_pose', sample_data_record['ego_pose_token'])
 
             self.true_ego_pos_traj.append(pose_record['translation'])
             self.true_ego_quat_traj.append(pose_record['rotation'])
-
+            
         self.init_ego_pos = self.true_ego_pos_traj[0]
         self.init_ego_quat = self.true_ego_quat_traj[0]
+        self.center_agent = 'ego'
+        
+    def reset_ado(self, instance_token):
+        self.instance_token = instance_token
+        for inst in self.nusc.instance:
+            if inst['token'] == self.instance_token:
+                self.nbr_ann = inst['nbr_annotations']
+                self.first_ann_token = inst['first_annotation_token']
+                self.last_ann_token = inst['last_annotation_token']
+                self.ann_token = self.first_ann_token
+                self.inst_ann = self.nusc.get('sample_annotation', self.ann_token)
 
-            
+                self.sample_token = self.inst_ann['sample_token']
+                self.sample = self.nusc.get('sample', self.sample_token)
+                self.scene_token = self.sample['scene_token']
+                self.scene = self.nusc.get('scene', self.scene_token)
+                self.scene_log = self.helper.data.get('log', self.scene['log_token'])
+                self.nusc_map = self.nusc_map_dict[self.scene_log['location']]
+                self.init_ego_pos = self.inst_ann['translation']
+                self.init_ego_quat = self.inst_ann['rotation']
+                break
+        
+
+        self.true_ego_pos_traj = []
+        self.true_ego_quat_traj = []
+
+        agent_futures = self.helper.get_future_for_agent(self.instance_token, self.sample_token, 20, in_agent_frame=True, just_xy=False)
+        for a in agent_futures:
+            self.true_ego_pos_traj.append(a['translation'])
+            self.true_ego_quat_traj.append(a['rotation'])
+        
+        self.center_agent = 'ado'
+        
+    def reset(self, scene_name=None, scene_idx=None, instance_token=None):
+        self.sim_ego_pos_gb = None
+        self.sim_ego_quat_gb = None
+        self.sample_idx = 0
+        self.sample_token = None
+        self.instance_token = None
+        self.inst_ann = None
+        self.center_agent = None
+        
+        if instance_token is None:
+            self.reset_ego(scene_name, scene_idx)
+        else:
+            self.reset_ado(instance_token)
+        
         self.update_all_info()
         return self.get_observation()
         
@@ -259,17 +308,24 @@ class NuScenesEnv(NuScenesAgent):
                 render_additional['lines'] = render_info['lines']
             if 'scatters' in render_info.keys():
                 render_additional['scatters'] = render_info['scatters']
-                
-            fig, ax = self.graphics.plot_ego_scene(sample_token=self.sample['token'],
-                                                   ego_traj=ego_traj,
-                                                   ado_traj=ado_traj_dict,
-                                                   contour=costmap_contour,
-                                                   save_img_dir=save_img_dir,
-                                                   idx=str(self.sample_idx).zfill(2),
-                                                   sensor_info=sensor_info,
-                                                   paper_ready=self.config['render_paper_ready'],
-                                                   other_images_to_be_saved=other_images_to_be_saved,
-                                                   render_additional = render_additional
+
+            if self.instance_token is None:
+                ego_centric = True
+            else:
+                ego_centric = False
+            fig, ax = self.graphics.plot_ego_scene(
+                ego_centric=ego_centric,
+                sample_token=self.sample['token'],
+                instance_token=self.instance_token,
+                ego_traj=ego_traj,
+                ado_traj=ado_traj_dict,
+                contour=costmap_contour,
+                save_img_dir=save_img_dir,
+                idx=str(self.sample_idx).zfill(2),
+                sensor_info=sensor_info,
+                paper_ready=self.config['render_paper_ready'],
+                other_images_to_be_saved=other_images_to_be_saved,
+                render_additional = render_additional
             )
             plt.show()
             
@@ -295,12 +351,20 @@ class NuScenesEnv(NuScenesAgent):
             self.sim_ego_quat_gb = [q[0], q[1], q[2], q[3]]
             
         done = False
-        if self.sample['next'] == "":
-            done = True
-
-        if not done:
-            self.sample = self.nusc.get('sample', self.sample['next'])
-
+        if self.inst_ann is None:
+            if self.sample['next'] == "":
+                done = True
+            if not done:
+                self.sample = self.nusc.get('sample', self.sample['next'])
+        else:
+            if self.inst_ann['next'] == "":
+                done = True
+            if not done:
+                self.ann_token = self.inst_ann['next']
+                self.inst_ann = self.nusc.get('sample_annotation', self.ann_token)
+                self.sample_token = self.inst_ann['sample_token']
+                self.sample = self.nusc.get('sample', self.sample_token)
+                
         self.update_all_info()
         self.sample_idx += 1
         return self.get_observation(), done

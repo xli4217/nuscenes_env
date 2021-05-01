@@ -48,7 +48,7 @@ class Sensor(NuScenesAgent):
     def update_all_info(self):
         pass
             
-    def get_info(self, sample_token: str, ego_pos:np.ndarray=None, ego_quat:np.ndarray=None):
+    def get_info(self, sample_token: str, ego_pos:np.ndarray=None, ego_quat:np.ndarray=None, instance_based=False):
 
         sample = self.nusc.get('sample', sample_token)
         scene = self.nusc.get('scene', sample['scene_token'])
@@ -140,7 +140,9 @@ class Sensor(NuScenesAgent):
                                      sensing_patch)
 
         # get canbus info
-        can_info = self.get_can_info(scene['name'])
+        can_info = None
+        if not instance_based:
+            can_info = self.get_can_info(scene['name'])
         
         sensing_info = {
             'sample_token':sample_token,

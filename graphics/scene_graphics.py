@@ -146,7 +146,9 @@ class SceneGraphics(NuScenesAgent):
 
         
     def plot_ego_scene(self,
+                       ego_centric=True,
                        sample_token:str=None,
+                       instance_token:str=None,
                        scene_token:str=None,
                        idx:str="",
                        save_pkl_dir:str=None,
@@ -193,8 +195,9 @@ class SceneGraphics(NuScenesAgent):
         if sensor_info is not None:
             plot_list += ['sensing_patch']
             
-        fig, ax, other = self.plot_agent_scene(ego_centric=True,
+        fig, ax, other = self.plot_agent_scene(ego_centric=ego_centric,
                                                sample_token=sample_token,
+                                               instance_token=instance_token,
                                                sensor_info=sensor_info,
                                                text_box=text_box,
                                                plot_list=plot_list,
@@ -288,36 +291,36 @@ class SceneGraphics(NuScenesAgent):
         nusc_map = NuScenesMap(dataroot=self.dataroot, map_name=scene_log['location'])
         
         if not ego_centric:
-            if sensor_info is not None:
-                agent_future = sensor_info['agent_info']['current_agent']['future']
-                agent_past = sensor_info['agent_info']['current_agent']['past']
-            else:
-                agent_future = self.helper.get_future_for_agent(instance_token,
-                                                                sample_token,
-                                                                self.na_config['pred_horizon'],
-                                                                in_agent_frame=False,
-                                                                just_xy=True)
-
-                agent_past = self.helper.get_past_for_agent(instance_token,
+            # if sensor_info is not None:
+            #     agent_future = sensor_info['agent_info']['current_agent']['future']
+            #     agent_past = sensor_info['agent_info']['current_agent']['past']
+            # else:
+            agent_future = self.helper.get_future_for_agent(instance_token,
                                                             sample_token,
-                                                            self.na_config['obs_horizon'],
+                                                            self.na_config['pred_horizon'],
                                                             in_agent_frame=False,
                                                             just_xy=True)
 
-                #### set plot patch ####
-                patch_margin = 10
-                min_diff_patch = 30
+            agent_past = self.helper.get_past_for_agent(instance_token,
+                                                        sample_token,
+                                                        self.na_config['obs_horizon'],
+                                                        in_agent_frame=False,
+                                                        just_xy=True)
+
+            #### set plot patch ####
+            patch_margin = 40
+            min_diff_patch = 30
                 
-                min_patch = np.floor(agent_future.min(axis=0) - patch_margin)
-                max_patch = np.ceil(agent_future.max(axis=0) + patch_margin)
-                diff_patch = max_patch - min_patch
+            min_patch = np.floor(agent_future.min(axis=0) - patch_margin)
+            max_patch = np.ceil(agent_future.max(axis=0) + patch_margin)
+            diff_patch = max_patch - min_patch
                 
-                if any(diff_patch < min_diff_patch):
-                    center_patch = (min_patch + max_patch) / 2
-                    diff_patch = np.maximum(diff_patch, min_diff_patch)
-                    min_patch = center_patch - diff_patch / 2
-                    max_patch = center_patch + diff_patch / 2
-                my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
+            if any(diff_patch < min_diff_patch):
+                center_patch = (min_patch + max_patch) / 2
+                diff_patch = np.maximum(diff_patch, min_diff_patch)
+                min_patch = center_patch - diff_patch / 2
+                max_patch = center_patch + diff_patch / 2
+            my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
 
         else:
             sample_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT'])
