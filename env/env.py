@@ -87,7 +87,8 @@ class NuScenesEnv(NuScenesAgent):
         #### sample info ####
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['sample_token'] = self.sample['token']
-
+        self.all_info['time'] = self.time
+        
         if self.instance_token is None:
             sample_data = self.helper.data.get('sample_data', self.sample['data']['CAM_FRONT'])
             ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
@@ -236,6 +237,7 @@ class NuScenesEnv(NuScenesAgent):
         self.instance_token = None
         self.inst_ann = None
         self.center_agent = None
+        self.time = 0
         
         if instance_token is None:
             self.reset_ego(scene_name, scene_idx)
@@ -373,6 +375,7 @@ class NuScenesEnv(NuScenesAgent):
                 
         self.update_all_info()
         self.sample_idx += 1
+        self.time += 0.5
         return self.get_observation(), done
         
 
