@@ -92,56 +92,48 @@ class SceneGraphics(NuScenesAgent):
         pass
 
 
-    def generate_video_from_images(self, image_path:str=None, video_save_path:str=None):
-        img_fn_list = [str(p).split('/')[-1] for p in Path(image_path).rglob('*.png')]
-        birdseye_img_list = [p for p in img_fn_list if 'birdseye' in p and 'checkpoint' not in p]
-        birdseye_idx = np.argsort(np.array([int(p[:2]) for p in birdseye_img_list]))
-        birdseye_img_list = np.array(birdseye_img_list)[birdseye_idx]
+    def make_video_from_images(self, image_dir:str=None, video_save_dir:str=None, video_layout=None):
+        if video_layout is None:
+            video_layout = {
+                'figsize': (15,15),
+                'nb_rows': 6,
+                'nb_cols': 6,
+                'components': {
+                    'birdseye': [[0,4], [0,6]],
+                    'camera': [[4,6], [0,6]]
+                }
+            }
+        
+        img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
 
-        camera_img_list =  [p for p in img_fn_list if 'camera' in p and 'checkpoint' not in p]
-        camera_idx = np.argsort(np.array([int(p[:2]) for p in camera_img_list]))
-        camera_img_list = np.array(camera_img_list)[camera_idx]
+        component_img_list = {}
+        for k, v in video_layout['components'].items():
+            img_list = [p for p in img_fn_list if k in p and 'checkpoint' not in p]
+            idx = np.argsort(np.array([int(p[:2]) for p in img_list]))
+            img_list = np.array(img_list)[idx]
+            nb_images = len(img_list)
+            component_img_list[k] = img_list
+             
  
-        ctrl_img_list =  [p for p in img_fn_list if 'ctrl' in p and 'checkpoint' not in p]
-        ctrl_idx = np.argsort(np.array([int(p[:2]) for p in ctrl_img_list]))
-        ctrl_img_list = np.array(ctrl_img_list)[ctrl_idx]
-
-        aut_img_list =  [p for p in img_fn_list if 'aut' in p and 'checkpoint' not in p]
-        aut_idx = np.argsort(np.array([int(p[:2]) for p in aut_img_list]))
-        aut_img_list = np.array(aut_img_list)[aut_idx]
-
-
-        fig = plt.figure(figsize=(15, 15), constrained_layout=False)
-        #gs = fig.add_gridspec(nrows=3, ncols=3, left=0.05, right=0.48, wspace=0.05)
-        gs = fig.add_gridspec(nrows=6, ncols=6, wspace=0.01)
-        ax1 = fig.add_subplot(gs[:3, :3]) # bird-view
-        ax2 = fig.add_subplot(gs[:3, 3:]) # automaton
-        ax3 = fig.add_subplot(gs[3:, :3]) # front camera
-        ax4 = fig.add_subplot(gs[3:, 3:]) # control
-        ax1.axis('off')
-        ax2.axis('off')
-        ax3.axis('off')
-        ax4.axis('off')
-
-        i = 0
+        fig = plt.figure(figsize=video_layout['figsize'], constrained_layout=False)
+        gs = fig.add_gridspec(nrows=video_layout['nb_rows'], ncols=video_layout['nb_cols'], wspace=0.01)
+        axes = {}
+        for k, v in video_layout['components'].items():
+            ax = fig.add_subplot(gs[v[0][0]:v[0][1], v[1][0]:v[1][1]])
+            ax.axis('off')
+            axes[k] = ax
+            
         camera = Camera(fig)
-        for p_birdseye, p_camera, p_ctrl, p_aut in tqdm.tqdm(zip(birdseye_img_list, camera_img_list, ctrl_img_list, aut_img_list)):
-            # if i > 2:
-            #     break
-            birdseye_img = plt.imread(os.path.join(image_path, p_birdseye))
-            aut_img = plt.imread(os.path.join(image_path, p_aut))
-            camera_img = plt.imread(os.path.join(image_path, p_camera))
-            ctrl_img = plt.imread(os.path.join(image_path, p_ctrl))
-            ax1.imshow(birdseye_img)
-            ax2.imshow(aut_img)
-            ax3.imshow(camera_img)
-            ax4.imshow(ctrl_img)
+            
+        for i in tqdm.tqdm(range(nb_images)):
+            for k, v in component_img_list.items():
+                axes[k].imshow(plt.imread(os.path.join(image_dir, v[i])))
             camera.snap()
 
         animation = camera.animate()
 
-        if video_save_path is not None:
-            animation.save(video_save_path)
+        if video_save_dir is not None:
+            animation.save(video_save_dir+'/video.mp4')
         return animation
 
         
@@ -540,8 +532,7 @@ class SceneGraphics(NuScenesAgent):
                 color = 'red'
             elif object_type == 'sim_ego':
                 oi = OffsetImage(r_img, zoom=0.015, zorder=700)
-                color = 'yellow'
-            
+                color = 'yellow'            
                 
             veh_box = AnnotationBbox(oi, (pos[0], pos[1]), frameon=False)
             veh_box.zorder = 700
