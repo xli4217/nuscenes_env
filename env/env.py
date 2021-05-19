@@ -145,7 +145,7 @@ class NuScenesEnv(NuScenesAgent):
         #### rasterized image (TODO: support for sim ego and ado) ####
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
             #### ego raster img ####
-            ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=ego_pose)
+            ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=ego_pose, include_history=False)
             ego_raster_img = np.transpose(ego_raster_img, (2,0,1))
             self.all_info['raster_image'] = ego_raster_img
 
@@ -154,7 +154,8 @@ class NuScenesEnv(NuScenesAgent):
                 'translation': self.sim_ego_pos_gb,
                 'rotation': self.sim_ego_quat_gb
             }
-            sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose)
+
+            sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
             sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
 
@@ -298,18 +299,15 @@ class NuScenesEnv(NuScenesAgent):
             costmap_contour = None
             if 'costmap_contour' in render_info.keys():
                 costmap_contour = render_info['costmap_contour']
-                
+
             other_images_to_be_saved = None
             if 'sim_ego_raster_image' in self.all_info.keys():
                 other_images_to_be_saved = {
                     'raster': np.transpose(self.all_info['sim_ego_raster_image'], (1,2,0))
                 }
             if 'image' in render_info.keys():
-                other_images_to_be_saved = {
-                    render_info['image']['name']: render_info['image']['img']
-                }
+                other_images_to_be_saved = render_info['image']
 
-                
             render_additional = None
             if 'lines' in render_info.keys():
                 render_additional['lines'] = render_info['lines']
@@ -364,6 +362,7 @@ class NuScenesEnv(NuScenesAgent):
                 done = True
             if not done:
                 self.sample = self.nusc.get('sample', self.sample['next'])
+                self.sample_token = self.sample['token']
         else:
             if self.inst_ann['next'] == "":
                 done = True
@@ -411,7 +410,7 @@ class NuScenesEnv(NuScenesAgent):
             axes[k] = ax
             
         camera = Camera(fig)
-            
+
         for i in tqdm.tqdm(range(nb_images)):
             for k, v in component_img_list.items():
                 axes[k].imshow(plt.imread(os.path.join(image_dir, v[i])))

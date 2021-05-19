@@ -214,13 +214,13 @@ class SceneGraphics(NuScenesAgent):
         #### plot contour ####
         if contour is not None:
             self.plot_contour(ax, contour)
-            
+
         #### save stuff ####
         if save_pkl_dir is not None:
             with open(p, 'wb') as f:
                 p = os.path.join(save_pkl_dir, idx+"_"+sample_token+".pkl")
                 cloudpickle.dump(ax, p)
-            
+
         if save_img_dir is not None:
             p = os.path.join(save_img_dir, idx+"_"+sample_token+"_birdseye.png")
             #fig.savefig(p, dpi=300, quality=95)
@@ -233,10 +233,13 @@ class SceneGraphics(NuScenesAgent):
             if other_images_to_be_saved is not None:
                 for k, v in other_images_to_be_saved.items():
                     p = os.path.join(save_img_dir, idx+"_"+sample_token+"_"+k+".png")
-                    plt.imsave(p, v)
-                    
+                    if isinstance(v, np.ndarray):
+                        plt.imsave(p, v)
+                    elif isinstance(v, matplotlib.figure.Figure):
+                        plt.savefig()
+
         return fig, ax
-        
+
     def plot_agent_scene(self,
                          ego_centric:bool=False,
                          ego_traj=None,

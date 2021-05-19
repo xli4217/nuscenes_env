@@ -102,7 +102,6 @@ def add_present_time_to_history(current_time: List[Dict[str, Any]],
 
             # We append because we've reversed the history
             history[token].append(annotation)
-
         else:
             history[token] = [annotation]
 
@@ -176,7 +175,7 @@ def draw_agent_boxes(center_agent_annotation: Dict[str, Any],
     :return: None.
     """
     agent_x, agent_y = center_agent_annotation['translation'][:2]    
-        
+
     # plot ego
     if ego:
         # for idx, ann_list in agent_history.items():
@@ -217,15 +216,14 @@ def draw_agent_boxes(center_agent_annotation: Dict[str, Any],
         cv2.fillPoly(base_image, pts=[np.int0(box)], color=color)
 
 
-    # plot edo
+    # plot ado
     for instance_token, annotations in agent_history.items():
 
         num_points = len(annotations)
 
         for i, annotation in enumerate(annotations):
-
             box = get_track_box(annotation, (agent_x, agent_y), center_agent_pixels, resolution)
-
+            
             if instance_token == center_agent_annotation['instance_token']:
                 color = (255, 0, 0)
             else:
@@ -271,7 +269,7 @@ class AgentBoxesWithFadedHistory(AgentRepresentation):
 
         self.color_mapping = color_mapping
 
-    def make_representation(self, instance_token: str=None, sample_token: str=None, ego:bool=False, ego_pose=None) -> np.ndarray:
+    def make_representation(self, instance_token: str=None, sample_token: str=None, ego:bool=False, ego_pose=None, include_history=True) -> np.ndarray:
         """
         Draws agent boxes with faded history into a black background.
         :param instance_token: Instance token.
@@ -294,12 +292,15 @@ class AgentBoxesWithFadedHistory(AgentRepresentation):
                                                   self.seconds_of_history,
                                                   in_agent_frame=False,
                                                   just_xy=False)
+
+
         history = reverse_history(history)
 
         present_time = self.helper.get_annotations_for_sample(sample_token)
 
         history = add_present_time_to_history(present_time, history)
 
+        
         if not ego:
             center_agent_annotation = self.helper.get_sample_annotation(instance_token, sample_token)
         else:
@@ -313,9 +314,15 @@ class AgentBoxesWithFadedHistory(AgentRepresentation):
                 'instance_token': None
             }
 
+        if not include_history:
+            curr = {}
+            for token, anns in history.items():
+                curr[token] = [anns[-1]]
+            history = curr
+            
         draw_agent_boxes(center_agent_annotation, central_track_pixels,
                          history, base_image, resolution=self.resolution, get_color=self.color_mapping, ego=ego, ego_pose=ego_pose)
-
+        
         center_agent_yaw = quaternion_yaw(Quaternion(center_agent_annotation['rotation']))
         rotation_mat = get_rotation_matrix(base_image.shape, center_agent_yaw)
 
