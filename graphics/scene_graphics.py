@@ -276,7 +276,7 @@ class SceneGraphics(NuScenesAgent):
 
         if map_layers is None:
             map_layers = self.map_layers
-            
+
         if plot_list is None:
             plot_list = self.plot_list
 
@@ -284,7 +284,10 @@ class SceneGraphics(NuScenesAgent):
         scene = self.nusc.get('scene', sample['scene_token'])
         scene_log = self.nusc.get('log', scene['log_token'])
         nusc_map = NuScenesMap(dataroot=self.dataroot, map_name=scene_log['location'])
-        
+
+        patch_margin = 30
+        min_diff_patch = 30
+
         if not ego_centric:
             # if sensor_info is not None:
             #     agent_future = sensor_info['agent_info']['current_agent']['future']
@@ -303,13 +306,11 @@ class SceneGraphics(NuScenesAgent):
                                                         just_xy=True)
 
             #### set plot patch ####
-            patch_margin = 40
-            min_diff_patch = 30
-                
+
             min_patch = np.floor(agent_future.min(axis=0) - patch_margin)
             max_patch = np.ceil(agent_future.max(axis=0) + patch_margin)
             diff_patch = max_patch - min_patch
-                
+
             if any(diff_patch < min_diff_patch):
                 center_patch = (min_patch + max_patch) / 2
                 diff_patch = np.maximum(diff_patch, min_diff_patch)
@@ -321,10 +322,10 @@ class SceneGraphics(NuScenesAgent):
             sample_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT'])
             ego_pose = self.nusc.get('ego_pose', sample_data['ego_pose_token'])
             my_patch = (
-                ego_pose['translation'][0]-40,
-                ego_pose['translation'][1]-40,
-                ego_pose['translation'][0]+40,
-                ego_pose['translation'][1]+40,
+                ego_pose['translation'][0]-patch_margin,
+                ego_pose['translation'][1]-patch_margin,
+                ego_pose['translation'][0]+patch_margin,
+                ego_pose['translation'][1]+patch_margin,
             )
 
 
@@ -470,10 +471,19 @@ class SceneGraphics(NuScenesAgent):
             #         'start': <2x1 vector>,
             #         'end': <2x1 vector>
             #         'color': <color>
+            #     },
+            #     {
+            #          'traj': <2xn vector>,
+            #          'color': <color>,
+            #          'marker': <marker>
             #     }
             # ]
             for l in render_dict['lines']:
-                ax.plot([l['start'][0], l['end'][0]], [l['start'][1], l['end'][1]], c=l['color'])
+                if 'start' in l.keys():
+                    ax.plot([l['start'][0], l['end'][0]], [l['start'][1], l['end'][1]], c=l['color'])
+                elif 'traj' in l.keys():
+                    ax.plot(l['traj'][:,0], l['traj'][:,1], c=l['color'], linestyle=l['marker'])
+
         if 'scatters' in render_dict.keys():
             # scatters = [
             #     {
@@ -483,7 +493,7 @@ class SceneGraphics(NuScenesAgent):
             # ]
             for s in render_dict['scatters']:
                 ax.scatter(s['traj'][:,0], s['traj'][:,1], color=s['color'], s=30, zorder=700)
-            
+
     def in_my_patch(self, pos, my_patch):
         if pos[0] > my_patch[0] and pos[1] > my_patch[1] and pos[0] < my_patch[2] and pos[1] < my_patch[3]:
             return True
@@ -503,7 +513,7 @@ class SceneGraphics(NuScenesAgent):
                       attribute: str = "",
                       animated_agent=False
     ):
-        
+
         '''pos is the global coordinate of the object
            heading is in degrees
            object_type can be 'current_car' 'other_car', 'pedestrian'
@@ -515,7 +525,7 @@ class SceneGraphics(NuScenesAgent):
         elif object_type == 'ego':
             obj = cars[4]
         elif object_type == 'sim_ego':
-            obj = cars[1]
+            obj = cars[2]
         elif object_type == 'pedestrian':
             obj = ped
         else:
@@ -575,7 +585,7 @@ class SceneGraphics(NuScenesAgent):
 
         cp = ax.contourf(X_global, Y_global, Z, levels, zorder=100, alpha=0.5, cmap='Reds',linewidths=3)
 
-    def plot_sensor_info(self, ax, sensor_info,text_box=True):
+    def plot_sensor_info(self, ax, sensor_info,text_box=True, plot_ado_connection_lines=False):
         #### plot sensing patch ####
         sensing_patch = sensor_info['sensing_patch']['polygon']
         polygon  = matplotlib.patches.Polygon(np.array(list(sensing_patch.exterior.coords)),
@@ -596,9 +606,10 @@ class SceneGraphics(NuScenesAgent):
         
         #### plot agents ####
         agent_info = sensor_info['agent_info']
-        for agent in agent_info:
-            agent_pos = agent['translation'][:2]
-            ax.plot([ego_pos[0], agent_pos[0]], [ego_pos[1], agent_pos[1]], c='black')
+        if plot_ado_connection_lines:
+            for agent in agent_info:
+                agent_pos = agent['translation'][:2]
+                ax.plot([ego_pos[0], agent_pos[0]], [ego_pos[1], agent_pos[1]], c='black')
         
         #### plot map info ####
         
@@ -822,7 +833,7 @@ class SceneGraphics(NuScenesAgent):
                     'rotation_deg': agent_yaw
                 }
                 road_agents_in_patch['vehicles'].append(car_info)
-                
+
                 if text_box:
                     self.plot_text_box(ax, category, [ann['translation'][0]+1.2, ann['translation'][1]])
                     self.plot_text_box(ax, attribute, [ann['translation'][0]+1.2, ann['translation'][1]-1.2])

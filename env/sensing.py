@@ -47,7 +47,7 @@ class Sensor(NuScenesAgent):
 
     def update_all_info(self):
         pass
-            
+
     def get_info(self, sample_token: str, ego_pos:np.ndarray=None, ego_quat:np.ndarray=None, instance_based=False):
 
         sample = self.nusc.get('sample', sample_token)
@@ -68,7 +68,7 @@ class Sensor(NuScenesAgent):
         ego_yaw_rad = angle_of_rotation(ego_yaw)
         ego_yaw_degrees = np.rad2deg(ego_yaw_rad)
 
-        
+
         ego_info = {
             'translation': ego_pos,
             'rotation_deg': ego_yaw_degrees,
@@ -79,8 +79,8 @@ class Sensor(NuScenesAgent):
         }
 
         #### define patch ####
-        sensing_patch_width = 60
-        sensing_patch_length = 60
+        sensing_patch_width = 50
+        sensing_patch_length = 50
 
         # patch_center_before_rotation = np.array([ego_pos[0],
         #                                          ego_pos[1] + sensing_patch_length/2])
@@ -210,7 +210,7 @@ class Sensor(NuScenesAgent):
                 include = True
                 agent_type = 'car'
                 
-            #### Plot pedestrians ####
+            #### pedestrians ####
             if 'pedestrian' in category and not 'stroller' in category and not 'wheelchair' in category and self.in_shapely_polygon(agent_pos, sensing_patch):
                 include = True
                 agent_type = "pedestrian"
@@ -254,9 +254,9 @@ class Sensor(NuScenesAgent):
                 }
 
                 agent_info.append(tmp_agent_info)
-                
+
         return agent_info
-        
+
     def get_map_info(self,
                      ego_pos,
                      ego_yaw_deg,
@@ -267,24 +267,48 @@ class Sensor(NuScenesAgent):
         sensing_patch_center = [(sb[0]+sb[2])/2, (sb[1]+sb[3])/2]
         sensing_patch_length = sb[3] - sb[1]
         sensing_patch_width = sb[2] - sb[0]
-        
+
         map_info = {}
-                
+
         #### Get layer information ####
+
+        #### Intersections ####
+        road_segment_record_list = nusc_map.get_layer_record_in_patch(patch_box=(sensing_patch_center[0],
+                                                                              sensing_patch_center[1],
+                                                                              sensing_patch_length,
+                                                                              sensing_patch_width),
+                                                                   patch_angle=-ego_yaw_deg,
+                                                                   layer_name='road_segment',
+                                                                   rot_center=(ego_pos[0], ego_pos[1]))
+
+        intersection_data = []
+        for r in road_segment_record_list:
+            if r['is_intersection']:
+                bd = nusc_map.get_bounds('road_segment', r['token'])
+
+                intersection_data.append({
+                    'record': r,
+                    'bounding_box': bd
+                })
+
+        map_info['intersection'] = intersection_data
+
+        #### STOP areas ####
         stop_line_record_list = nusc_map.get_layer_record_in_patch(patch_box=(sensing_patch_center[0],
-                                                                    sensing_patch_center[1],
-                                                                    sensing_patch_length,
-                                                                    sensing_patch_width),
+                                                                              sensing_patch_center[1],
+                                                                              sensing_patch_length,
+                                                                              sensing_patch_width),
                                                                    patch_angle=-ego_yaw_deg,
                                                                    layer_name='stop_line',
                                                                    rot_center=(ego_pos[0], ego_pos[1]))
+
 
         stop_line_data = []
         for r in stop_line_record_list:
             bd = nusc_map.get_bounds('stop_line', r['token'])
 
             stop_line_data.append({'record': r, 'bounding_box': bd})
-            
+
         map_info['stop_line'] = stop_line_data
 
         #### Get center lane information ####
@@ -293,7 +317,7 @@ class Sensor(NuScenesAgent):
 
         closest_lane_poses = np.array(arcline_path_utils.discretize_lane(closest_lane_record, resolution_meters=1))
         map_info['closest_lane'] = {'record': closest_lane_record, 'poses': closest_lane_poses}
-        
+
         incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
         incoming_lane_data = []
         for incoming_lane_id in incoming_lane_ids:
@@ -302,7 +326,7 @@ class Sensor(NuScenesAgent):
             incoming_lane_data.append({'record': record, 'poses': poses})
 
         map_info['incoming_lanes'] = incoming_lane_data
-            
+
         outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane_id)
         outgoing_lane_data = []
         for outgoing_lane_id in outgoing_lane_ids:
@@ -311,7 +335,7 @@ class Sensor(NuScenesAgent):
             outgoing_lane_data.append({'record': record, 'poses': poses})
 
         map_info['outgoing_lanes'] = outgoing_lane_data
-        
+
         return map_info
 
 

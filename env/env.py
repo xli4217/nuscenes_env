@@ -69,7 +69,7 @@ class NuScenesEnv(NuScenesAgent):
             static_layer_rasterizer = StaticLayerRasterizer(self.helper, resolution=0.2)
             agent_rasterizer = AgentBoxesWithFadedHistory(self.helper, seconds_of_history=2, resolution=0.2)
             self.rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
-        
+
         #### Initialize ####
         self.all_info = {}
         self.reset()
@@ -88,7 +88,7 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['sample_token'] = self.sample['token']
         self.all_info['time'] = self.time
-        
+
         if self.instance_token is None:
             sample_data = self.helper.data.get('sample_data', self.sample['data']['CAM_FRONT'])
             ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
@@ -97,7 +97,7 @@ class NuScenesEnv(NuScenesAgent):
                 'translation': self.inst_ann['translation'],
                 'rotation': self.inst_ann['rotation']
             }
-            
+
         #### ego pose ####
         ego_yaw = Quaternion(ego_pose['rotation'])
         self.ego_yaw = quaternion_yaw(ego_yaw)
@@ -108,13 +108,13 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_pos_gb'] = np.array(ego_pose['translation'])[:2]
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
-        
+
         self.all_info['ego_past_pos'] = np.array(self.true_ego_pos_traj)[0:self.sample_idx]
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
         self.all_info['ego_past_quat'] = np.array(self.true_ego_quat_traj)[0:self.sample_idx]
         self.all_info['ego_future_quat'] = np.array(self.true_ego_quat_traj)[self.sample_idx:]
 
-        
+
         if self.sim_ego_pos_gb is None:
             self.sim_ego_pos_gb = np.array(ego_pose['translation'])[:2]
             self.sim_ego_quat_gb = np.array(ego_pose['rotation'])
@@ -127,9 +127,11 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         self.all_info['sim_ego_yaw_rad'] = self.sim_ego_yaw
-        
+
         #### future lanes ####
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
+
+        self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
 
         #### sensor info ####
         if self.instance_token is None:
@@ -308,12 +310,12 @@ class NuScenesEnv(NuScenesAgent):
             if 'image' in render_info.keys():
                 other_images_to_be_saved = render_info['image']
 
-            render_additional = None
+            render_additional = {}
             if 'lines' in render_info.keys():
                 render_additional['lines'] = render_info['lines']
             if 'scatters' in render_info.keys():
                 render_additional['scatters'] = render_info['scatters']
-
+            
             if self.instance_token is None:
                 ego_centric = True
             else:
