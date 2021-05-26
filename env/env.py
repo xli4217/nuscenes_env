@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import collections
 
 from nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
@@ -20,6 +21,7 @@ from .sensing import Sensor
 from graphics.scene_graphics import SceneGraphics
 import copy
 import tqdm
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from input_representation.static_layers import StaticLayerRasterizer
 from input_representation.agents import AgentBoxesWithFadedHistory
@@ -39,7 +41,8 @@ class NuScenesEnv(NuScenesAgent):
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
-            'render_elements': ['sim_ego'], # can contain ['sensor_info', 'sim_ego']
+            'render_elements': ['sim_ego'], # can contain ['sensor_info', 'sim_ego', 'human_ego', 'control_plots']
+            'patch_margin': 30,
             'save_image_dir': None,
             'scenes_range': [0,10],
             # contains ['center lane', 'raster_image']
@@ -161,7 +164,7 @@ class NuScenesEnv(NuScenesAgent):
             sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
 
-    def reset_ego(self, scene_name=None, scene_idx=None):
+    def reset_ego(self, scene_name=None, scene_idx=None, sample_idx=0):
         if scene_name is None and scene_idx is None:
             scene_list = np.arange(self.config['scenes_range'][0], self.config['scenes_range'][1])
             scene_idx = np.random.choice(scene_list)
@@ -176,12 +179,19 @@ class NuScenesEnv(NuScenesAgent):
 
         else:
             raise ValueError('can not have both scene_name and scene_idx as input')
-            
+
         print(f"current scene: {self.scene['name']}")
         self.scene_log = self.helper.data.get('log', self.scene['log_token'])
         self.nusc_map = self.nusc_map_dict[self.scene_log['location']]
+
         self.sample_token = self.scene['first_sample_token']
         self.sample = self.nusc.get('sample', self.sample_token)
+        self.sample_idx = sample_idx
+        s_idx = 0
+        while self.sample['next'] != "" and s_idx != self.sample_idx:
+            self.sample = self.nusc.get('sample', self.sample['next'])
+            s_idx += 1
+        self.sample_token = self.sample['token']
 
         #### get ego traj ####
         sample_tokens = self.nusc.field2token('sample', 'scene_token', self.scene['token'])
@@ -189,18 +199,18 @@ class NuScenesEnv(NuScenesAgent):
         self.true_ego_quat_traj = []
         for sample_token in sample_tokens:
             sample_record = self.nusc.get('sample', sample_token)
-                
+
             # Poses are associated with the sample_data. Here we use the lidar sample_data.
             sample_data_record = self.nusc.get('sample_data', sample_record['data']['LIDAR_TOP'])
             pose_record = self.nusc.get('ego_pose', sample_data_record['ego_pose_token'])
 
             self.true_ego_pos_traj.append(pose_record['translation'])
             self.true_ego_quat_traj.append(pose_record['rotation'])
-            
+
         self.init_ego_pos = self.true_ego_pos_traj[0]
         self.init_ego_quat = self.true_ego_quat_traj[0]
         self.center_agent = 'ego'
-        
+
     def reset_ado(self, instance_token):
         self.instance_token = instance_token
         for inst in self.nusc.instance:
@@ -220,7 +230,6 @@ class NuScenesEnv(NuScenesAgent):
                 self.init_ego_pos = self.inst_ann['translation']
                 self.init_ego_quat = self.inst_ann['rotation']
                 break
-        
 
         self.true_ego_pos_traj = []
         self.true_ego_quat_traj = []
@@ -229,10 +238,10 @@ class NuScenesEnv(NuScenesAgent):
         for a in agent_futures:
             self.true_ego_pos_traj.append(a['translation'])
             self.true_ego_quat_traj.append(a['rotation'])
-        
+
         self.center_agent = 'ado'
-        
-    def reset(self, scene_name=None, scene_idx=None, instance_token=None):
+
+    def reset(self, scene_name=None, scene_idx=None, sample_idx=0, instance_token=None):
         self.sim_ego_pos_gb = None
         self.sim_ego_quat_gb = None
         self.sample_idx = 0
@@ -241,15 +250,23 @@ class NuScenesEnv(NuScenesAgent):
         self.inst_ann = None
         self.center_agent = None
         self.time = 0
-        
+
+        if 'control_plots' in self.config['render_elements']:
+            if self.config['control_mode'] != 'kinematics':
+                raise ValueError('action plots need to be generated in kinematics control mode')
+            self.ap_timesteps = collections.deque(maxlen=10)
+            self.ap_speed = collections.deque(maxlen=10)
+            self.ap_steering = collections.deque(maxlen=10)
+
+
         if instance_token is None:
-            self.reset_ego(scene_name, scene_idx)
+            self.reset_ego(scene_name, scene_idx, sample_idx)
         else:
             self.reset_ado(instance_token)
-        
+
         self.update_all_info()
         return self.get_observation()
-        
+
     def get_observation(self):
         return self.all_info
 
@@ -262,7 +279,7 @@ class NuScenesEnv(NuScenesAgent):
                 filtered_agent_info.append(agent)
 
         return filtered_agent_info
-        
+
     def render(self, render_info={}):
         if 'image' in self.config['render_type']:
             sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
@@ -284,6 +301,24 @@ class NuScenesEnv(NuScenesAgent):
                         'color': 'yellow'
                     }
                 }
+
+            #### control plots ####
+            if 'control_plots' in self.config['render_elements']:
+                fig, ax = plt.subplots(2,1)
+                ax[0].plot(list(self.ap_timesteps), list(self.ap_speed), 'o-')
+                ax[0].set_xlabel('timestep')
+                ax[0].set_ylabel('speed')
+                ax[1].plot(list(self.ap_timesteps), list(self.ap_steering), 'o-')
+                ax[1].set_xlabel('timestep')
+                ax[1].set_ylabel('steering')
+                canvas = FigureCanvas(fig)
+                canvas.draw()
+                width, height = fig.get_size_inches() * fig.get_dpi()
+                image = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
+                if 'image' not in render_info.keys():
+                    render_info['image'] = {}
+                render_info['image'].update({'cmd': image})
+
 
             if self.config['save_image_dir'] is not None:
                 save_img_dir = os.path.join(self.config['save_image_dir'], str(self.scene['name']))
@@ -315,11 +350,16 @@ class NuScenesEnv(NuScenesAgent):
                 render_additional['lines'] = render_info['lines']
             if 'scatters' in render_info.keys():
                 render_additional['scatters'] = render_info['scatters']
-            
+
             if self.instance_token is None:
                 ego_centric = True
             else:
                 ego_centric = False
+
+            plot_human_ego = True
+            if 'human_ego' not in self.config['render_elements']:
+                plot_human_ego = False
+
             fig, ax = self.graphics.plot_ego_scene(
                 ego_centric=ego_centric,
                 sample_token=self.sample['token'],
@@ -332,14 +372,22 @@ class NuScenesEnv(NuScenesAgent):
                 sensor_info=sensor_info,
                 paper_ready=self.config['render_paper_ready'],
                 other_images_to_be_saved=other_images_to_be_saved,
-                render_additional = render_additional
+                render_additional = render_additional,
+                plot_human_ego=plot_human_ego,
+                patch_margin=self.config['patch_margin']
             )
             plt.show()
-            
+
     def step(self, action:np.ndarray=None, render_info={}):
+        self.py_logger.debug(f"received action: {action}")
+        #### render ####
         if len(self.config['render_type']) > 0:
+            if 'control_plots' in self.config['render_elements']:
+                self.ap_speed.append(action[0])
+                self.ap_steering.append(action[1])
+                self.ap_timesteps.append(self.time)
             self.render(render_info)
-        
+
         if self.config['control_mode'] == 'position':
             self.sim_ego_pos_gb = action
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']

@@ -19,10 +19,10 @@ def get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame
 
     if frame == 'global':
         lane_discretized_poses = convert_local_coords_to_global(lane_discretized_poses_local, ego_pos, ego_quat)
-            
+
     elif frame == 'local':
         lane_discretized_poses = lane_discretized_poses_local
-            
+
     return lane_discretized_poses
 
 
@@ -32,6 +32,10 @@ def get_future_lanes(nusc_map, ego_pos, ego_quat, frame='global'):
     closest_lane = nusc_map.get_closest_lane(ego_pos[0], ego_pos[1], radius=2)
     lane_record = nusc_map.get_lane(closest_lane)
     closest_lane_local = get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame=frame)
+
+    # get part of current lane that's in front of the ego
+    closest_lane_local_idx = np.argmax(closest_lane_local[:,1]>0)
+    closest_lane_local = closest_lane_local[closest_lane_local_idx:,:]
 
     # concatenate closest lane with all outgoing lanes
     ego_future_lanes = np.zeros((5, 500, 2)) # (max number of possible future lanes, points on the lanes, (x,y))

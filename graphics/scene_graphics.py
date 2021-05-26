@@ -154,7 +154,9 @@ class SceneGraphics(NuScenesAgent):
                        read_from_cached=False,
                        paper_ready=False,
                        other_images_to_be_saved=None,
-                       render_additional=None
+                       render_additional=None,
+                       plot_human_ego=True,
+                       patch_margin=30
     ):
 
         '''
@@ -180,13 +182,23 @@ class SceneGraphics(NuScenesAgent):
 
         if scene_token is not None:
             sample_token = self.nusc.get('scene', scene_token)['first_sample_token']
-            
+
         sample = self.nusc.get('sample', sample_token)
         if plot_list is None:
             plot_list = self.plot_list
         if sensor_info is not None:
             plot_list += ['sensing_patch']
-            
+
+        # this decides whether plotting in ego_centric or sim_ego_centric
+        if ego_traj is not None:
+            if 'sim_ego' in ego_traj.keys():
+                sim_ego = ego_traj['sim_ego']
+                if sim_ego is not None:
+                    sim_ego_pose = {'translation': sim_ego['pos']}
+                else:
+                    sim_ego_pose = None
+
+
         fig, ax, other = self.plot_agent_scene(ego_centric=ego_centric,
                                                sample_token=sample_token,
                                                instance_token=instance_token,
@@ -196,16 +208,18 @@ class SceneGraphics(NuScenesAgent):
                                                ego_traj=ego_traj,
                                                read_from_cached=read_from_cached,
                                                paper_ready=paper_ready,
-                                               render_additional=render_additional
+                                               render_additional=render_additional,
+                                               plot_human_ego=plot_human_ego,
+                                               patch_margin=patch_margin,
+                                               sim_ego_pose=sim_ego_pose
         )
 
 
+
         #### plot sim ego ####
-        if ego_traj is not None:
-            if 'sim_ego' in ego_traj.keys():
-                sim_ego = ego_traj['sim_ego']
-                if sim_ego is not None:
-                    self.plot_elements(sim_ego['pos'], sim_ego['yaw'], 'sim_ego', ax, animated_agent=paper_ready)
+        if sim_ego_pose is not None:
+            self.plot_elements(sim_ego['pos'], sim_ego['yaw'], 'sim_ego', ax, animated_agent=paper_ready)
+
 
         #### plot ado traj ####
         if ado_traj is not None:
@@ -263,7 +277,10 @@ class SceneGraphics(NuScenesAgent):
                          bax=None,
                          sfig=None, # for camera
                          sax=None,
-                         render_additional=None
+                         render_additional=None,
+                         plot_human_ego=True,
+                         patch_margin=30,
+                         sim_ego_pose=None
     ):
 
         if paper_ready:
@@ -285,7 +302,7 @@ class SceneGraphics(NuScenesAgent):
         scene_log = self.nusc.get('log', scene['log_token'])
         nusc_map = NuScenesMap(dataroot=self.dataroot, map_name=scene_log['location'])
 
-        patch_margin = 30
+        patch_margin = patch_margin
         min_diff_patch = 30
 
         if not ego_centric:
@@ -328,6 +345,15 @@ class SceneGraphics(NuScenesAgent):
                 ego_pose['translation'][1]+patch_margin,
             )
 
+            if sim_ego_pose is not None:
+                my_patch = (
+                    sim_ego_pose['translation'][0]-patch_margin,
+                    sim_ego_pose['translation'][1]-patch_margin,
+                    sim_ego_pose['translation'][0]+patch_margin,
+                    sim_ego_pose['translation'][1]+patch_margin,
+                )
+
+
 
         #### read from saved path if present ####
         read_img = False
@@ -353,7 +379,7 @@ class SceneGraphics(NuScenesAgent):
                                                 fig=bfig,
                                                 axes=bax)
 
-      
+
             if not ego_centric:
                 ax.set_title(scene['name']+" instance_token: " + instance_token + ", sample_token: " + sample_token + "\n" + ", decription " + scene['description'])
             else:
@@ -368,7 +394,7 @@ class SceneGraphics(NuScenesAgent):
         
             #### Plot ego ####
             if 'ego' in plot_list:
-                ego_pos, ego_quat = self.plot_ego(ax, sample, ego_traj=ego_traj, animated_agent=animated_agent)
+                ego_pos, ego_quat = self.plot_ego(ax, sample, ego_traj=ego_traj, animated_agent=animated_agent, plot_ego=plot_human_ego)
 
             
             #### Plot other agents ####
@@ -747,7 +773,7 @@ class SceneGraphics(NuScenesAgent):
                 self.plot_text_box(ax, stop_line_type, center, 'white')
 
 
-    def plot_ego(self, ax, sample, ego_traj=None, animated_agent=False):
+    def plot_ego(self, ax, sample, ego_traj=None, animated_agent=False, plot_ego=True):
         sample_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT'])
         ego_pose = self.nusc.get('ego_pose', sample_data['ego_pose_token'])
             
@@ -757,7 +783,8 @@ class SceneGraphics(NuScenesAgent):
         ego_yaw = angle_of_rotation(ego_yaw)
         ego_yaw = np.rad2deg(ego_yaw)
 
-        self.plot_elements(pos, ego_yaw, 'ego', ax, animated_agent=animated_agent)
+        if plot_ego:
+            self.plot_elements(pos, ego_yaw, 'ego', ax, animated_agent=animated_agent)
 
         if ego_traj is not None:
             for name, traj_dict in ego_traj.items():
