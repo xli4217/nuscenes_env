@@ -84,6 +84,7 @@ class NuScenesEnv(NuScenesAgent):
             'scene_token': self.scene['token'],
             'scene_description': self.scene['description'],
             'scene_name': self.scene['name'],
+            'scene_nbr_samples': self.scene['nbr_samples']
         }
         self.all_info['scene_info'] = scene_info
 
@@ -374,7 +375,8 @@ class NuScenesEnv(NuScenesAgent):
                 other_images_to_be_saved=other_images_to_be_saved,
                 render_additional = render_additional,
                 plot_human_ego=plot_human_ego,
-                patch_margin=self.config['patch_margin']
+                patch_margin=self.config['patch_margin'],
+                save_pkl_dir=save_img_dir
             )
             plt.show()
 
@@ -389,11 +391,15 @@ class NuScenesEnv(NuScenesAgent):
                 self.ap_timesteps.append(self.time)
             self.render(render_info)
 
-        if self.config['control_mode'] == 'position':
+        if action is None:
+            self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
+            self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
+
+        if self.config['control_mode'] == 'position' and action is not None:
             self.sim_ego_pos_gb = action
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
 
-        if self.config['control_mode'] == 'kinematics':
+        if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
             sim_ego_speed = action[0]
             sim_ego_yaw_rate = action[1]

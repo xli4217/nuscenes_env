@@ -37,7 +37,8 @@ from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D
 class Sensor(NuScenesAgent):
     def __init__(self, config={}, helper=None, py_logger=None, tb_logger=None):
         self.config =  {
-            'NuScenesAgent_config':{}
+            'NuScenesAgent_config':{},
+            'sensing_patch_size': (50,50)
         }
         self.config.update(config)
 
@@ -79,8 +80,8 @@ class Sensor(NuScenesAgent):
         }
 
         #### define patch ####
-        sensing_patch_width = 50
-        sensing_patch_length = 50
+        sensing_patch_width = self.config['sensing_patch_size'][0]
+        sensing_patch_length = self.config['sensing_patch_size'][1]
 
         # patch_center_before_rotation = np.array([ego_pos[0],
         #                                          ego_pos[1] + sensing_patch_length/2])

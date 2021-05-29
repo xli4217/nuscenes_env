@@ -15,16 +15,14 @@ from pathlib import Path
 from utils.utils import assert_type, assert_shape
 from nuscenes_env.nuscenes.prediction.helper import PredictHelper
 from nuscenes_env.nuscenes import NuScenes
-from paths import mini_path
+from paths import mini_path, full_path
 from nuscenes_env.nuscenes.map_expansion.map_api import NuScenesMap
 from nuscenes_env.nuscenes.map_expansion import arcline_path_utils
 
 import random
 
-nusc = NuScenes(dataroot=mini_path, version='v1.0-mini')
-helper = PredictHelper(nusc)
 
-def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, pred_steps, obs_steps):
+def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, pred_steps, obs_steps, nusc, helper):
     sample = nusc.get('sample', sample_df.iloc[0].sample_token)
     scene = nusc.get('scene', sample['scene_token'])
     scene_log = nusc.get('log', scene['log_token'])
@@ -84,7 +82,6 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
 
 
 def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5):
-
     # get instance information
     pos = []
     vel = []
@@ -112,6 +109,9 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5):
                 continue
             ado_past_local = convert_global_coords_to_local(ado_past_global, ego_pos, ego_quat)
             ado_past.append(ado_past_local)
+
+            if np.isnan(ado_past_global).any() or np.isnan(ado_future_global).any() or np.isnan(row.instance_pos).any() or np.isnan(row.instance_vel).any():
+                continue
 
             # get current time step observation
             pos.append(row['instance_pos'][:2])
@@ -158,9 +158,10 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5):
 
 class ProcessTrainingData(object):
 
-    def __init__(self, config={}):
+    def __init__(self, config={}, helper=None):
         #### common setup ####
         self.config = {
+            'version': 'v1.0-mini',
             'obs_steps':4,
             'pred_steps': 6,
             'freq':2,
@@ -176,8 +177,19 @@ class ProcessTrainingData(object):
 
         self.raw_data_df = pd.read_pickle(self.config['raw_data_path'])
 
+        if helper is None:
+            if self.config['version'] == 'v1.0-mini':
+                self.nusc = NuScenes(dataroot=mini_path, version='v1.0-mini')
+            if self.config['version'] == 'v1.0':
+                self.nusc = NuScenes(dataroot=full_path, version='v1.0')
+            self.helper = PredictHelper(self.nusc)
+        else:
+            self.helper = helper
+            self.nusc = helper.data
 
-    def process(self):
+    def process(self, num_closest_obs=None):
+        if num_closest_obs is None:
+            num_closest_obs = self.config['num_closest_obs']
         #### Trainig Input Initialize ####
         df_dict = {}
         #### get training input ####
@@ -186,11 +198,12 @@ class ProcessTrainingData(object):
         for scene_name, scene_df in tqdm.tqdm(multi_scene_df.groupby(level=0)):
             print(f"processing scene {scene_name}")
             #### loop through each step in the scene ####
-            for sample_idx, sample_df in scene_df.groupby(level=1):
-                if self.config['obs_steps'] < sample_idx < sample_df.iloc[0].scene_nbr_samples - self.config['pred_steps'] - 1:
+            nbr_samples_in_scene = scene_df.iloc[0].scene_nbr_samples
+            for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
+                if self.config['obs_steps'] < sample_idx < nbr_samples_in_scene - self.config['pred_steps'] - 1:
                     # sample_idx data is current data, sample_idx+1:sample_idx+pred_steps+1 is future data
 
-                    out = get_data_from_sample_df(scene_name, sample_df, sample_idx, self.config['num_closest_obs'], self.config['pred_steps'], self.config['obs_steps']) 
+                    out = get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, self.config['pred_steps'], self.config['obs_steps'], self.nusc, self.helper) 
                     if out is None:
                         continue
 
@@ -206,6 +219,7 @@ class ProcessTrainingData(object):
 
 
         df = pd.DataFrame(df_dict)
+        print(f"df shape: {df.shape}")
         df.to_pickle(self.config['data_save_dir'])
 
 if __name__ == "__main__":

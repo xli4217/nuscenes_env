@@ -10,7 +10,7 @@ def get_raw_data_pd_dict_from_obs(observation):
         'scene_token': [scene_info['scene_token']],
         'scene_description': [scene_info['scene_description']],
         'scene_name': [scene_info['scene_name']],
-        'scene_nbr_samples': [len(observation['ego_future_pos'])],
+        'scene_nbr_samples': [scene_info['scene_nbr_samples']],
         'ego_accel_traj': [can_info['ego_accel_traj']],
         'ego_quat_traj': [can_info['ego_quat_traj']],
         'ego_pos_traj': [can_info['ego_pos_traj']],
