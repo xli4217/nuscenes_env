@@ -6,7 +6,7 @@ from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
 from typing import Tuple, Dict, Callable
 import importlib
-
+from prettytable import PrettyTable
 
 from IPython import display as ipythondisplay
 from pyvirtualdisplay import Display
@@ -16,6 +16,79 @@ from celluloid import Camera
 
 display = Display(visible=0, size=(1400, 900))
 display.start()
+
+def get_dataframe_summary(d):
+    print(f"data shape: {d.shape}")
+
+    d_info = PrettyTable()
+    d_info.field_names = ['Column name', 'type', 'shape', 'min', 'mean', 'max']
+    for k in d.columns.tolist():
+        dk = d.iloc[0][k]
+        dk_type = str(type(dk))
+        m1 = 'n/a'
+        m2 = 'n/a'
+        m3 = 'm/a'
+        if isinstance(dk, np.ndarray):
+            dk_shape = dk.shape
+            if len(dk.flatten()) > 0:
+                if isinstance(dk.flatten()[0], np.float):
+                    m1 = dk.min()
+                    m2 = dk.mean()
+                    m3 = dk.max()
+        elif isinstance(dk, list):
+            dk_shape = len(dk)
+            # dk = sum(dk, [])
+            # if isinstance(dk[0], np.ndarray):
+            #     m1 = dk[0].min()
+            #     m2 = dk[0].mean()
+            #     m3 = dk[0].max()
+            # else:
+            #     m1 = min(dk)
+            #     m2 = 'n/a'
+            #     m3 = max(dk)
+        else:
+            dk_shape = 'n/a'
+        
+        d_info.add_row([k, dk_type, dk_shape, m1, m2,m3])
+
+    return d_info
+#########
+# Facet #
+#########
+from IPython.core.display import display, HTML
+import base64
+from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator
+
+def facet_display_overview(data):
+    jsonstr = data.to_json(orient='records')
+    HTML_TEMPLATE = """
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+        <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
+        <facets-dive id="elem" height="1000" width="500"></facets-dive>
+        <script>
+          var data = {jsonstr};
+          document.querySelector("#elem").data = data;
+        </script>"""
+    html = HTML_TEMPLATE.format(jsonstr=jsonstr)
+    display(HTML(html))
+
+def facet_display_stat(data):
+    # Create the feature stats for the datasets and stringify it.
+    gfsg = GenericFeatureStatisticsGenerator()
+    proto = gfsg.ProtoFromDataFrames([{'name': 'train', 'table': data}])
+    protostr = base64.b64encode(proto.SerializeToString()).decode("utf-8")
+
+    # Display the facets overview visualization for this data
+    HTML_TEMPLATE = """
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+        <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html" >
+        <facets-overview id="elem"></facets-overview>
+        <script>
+          document.querySelector("#elem").protoInput = "{protostr}";
+        </script>"""
+    html = HTML_TEMPLATE.format(protostr=protostr)
+    display(HTML(html))
+
 
 def angle_of_rotation(yaw: float) -> float:
     """
@@ -447,9 +520,8 @@ def transform_mesh2D(pos, rot_rad, X, Y):
     Yr = -np.sin(rot_rad) * X + np.cos(rot_rad) * Y + pos[1]
 
     return Xr, Yr
-                
 
-    
+
 if __name__ == "__main__":
     a = [1,2,3]
     split_list_for_multi_worker(a, 3)

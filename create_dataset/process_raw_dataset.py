@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from utils.utils import split_list_for_multi_worker, timing_val, set_function_arguments, class_from_path
 from utils.configuration import Configuration
-from create_dataset.dataset_utils import get_raw_data_pd_dict_from_obs
+from create_dataset.raw_dataset_utils import get_raw_data_pd_dict_from_obs
 
 from collections import OrderedDict
 
