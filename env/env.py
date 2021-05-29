@@ -379,7 +379,8 @@ class NuScenesEnv(NuScenesAgent):
             plt.show()
 
     def step(self, action:np.ndarray=None, render_info={}):
-        self.py_logger.debug(f"received action: {action}")
+        if self.py_logger is not None:
+            self.py_logger.debug(f"received action: {action}")
         #### render ####
         if len(self.config['render_type']) > 0:
             if 'control_plots' in self.config['render_elements']:
