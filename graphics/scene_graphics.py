@@ -864,7 +864,8 @@ class SceneGraphics(NuScenesAgent):
                 if text_box:
                     self.plot_text_box(ax, category, [ann['translation'][0]+1.2, ann['translation'][1]])
                     self.plot_text_box(ax, attribute, [ann['translation'][0]+1.2, ann['translation'][1]-1.2])
-                    
+                    self.plot_text_box(ax, ann['instance_token'], [ann['translation'][0]+1.2, ann['translation'][1]+1.2])
+
             #### Plot pedestrians ####
             if 'pedestrian' in plot_list and 'pedestrian' in category and not 'stroller' in category and not 'wheelchair' in category and self.in_my_patch(pos, my_patch):
                 valid_agent = True

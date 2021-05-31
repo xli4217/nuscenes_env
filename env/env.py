@@ -306,11 +306,11 @@ class NuScenesEnv(NuScenesAgent):
             if 'control_plots' in self.config['render_elements']:
                 fig, ax = plt.subplots(2,1)
                 ax[0].plot(list(self.ap_timesteps), list(self.ap_speed), 'o-')
-                ax[0].set_xlabel('timestep')
-                ax[0].set_ylabel('speed')
+                ax[0].set_xlabel('timestep', fontsize=20)
+                ax[0].set_ylabel('speed', fontsize=20)
                 ax[1].plot(list(self.ap_timesteps), list(self.ap_steering), 'o-')
-                ax[1].set_xlabel('timestep')
-                ax[1].set_ylabel('steering')
+                ax[1].set_xlabel('timestep', fontsize=20)
+                ax[1].set_ylabel('steering', fontsize=20)
                 canvas = FigureCanvas(fig)
                 canvas.draw()
                 width, height = fig.get_size_inches() * fig.get_dpi()
@@ -374,7 +374,7 @@ class NuScenesEnv(NuScenesAgent):
                 other_images_to_be_saved=other_images_to_be_saved,
                 render_additional = render_additional,
                 plot_human_ego=plot_human_ego,
-                patch_margin=self.config['patch_margin']
+                patch_margin=self.config['patch_margin'],
             )
             plt.show()
 
@@ -437,7 +437,12 @@ class NuScenesEnv(NuScenesAgent):
                 'components': {
                     'birdseye': [[0,4], [0,6]],
                     'camera': [[4,6], [0,6]]
+                },
+                'fixed_image': {
+                    'path': None,
+                    'layout': [[],[]]
                 }
+
             }
         
         img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
@@ -449,7 +454,7 @@ class NuScenesEnv(NuScenesAgent):
             img_list = np.array(img_list)[idx]
             nb_images = len(img_list)
             component_img_list[k] = img_list
-             
+
  
         fig = plt.figure(figsize=video_layout['figsize'], constrained_layout=False)
         gs = fig.add_gridspec(nrows=video_layout['nb_rows'], ncols=video_layout['nb_cols'], wspace=0.01)
@@ -458,7 +463,7 @@ class NuScenesEnv(NuScenesAgent):
             ax = fig.add_subplot(gs[v[0][0]:v[0][1], v[1][0]:v[1][1]])
             ax.axis('off')
             axes[k] = ax
-            
+
         camera = Camera(fig)
 
         for i in tqdm.tqdm(range(nb_images)):
