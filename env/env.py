@@ -84,6 +84,7 @@ class NuScenesEnv(NuScenesAgent):
             'scene_token': self.scene['token'],
             'scene_description': self.scene['description'],
             'scene_name': self.scene['name'],
+            'scene_nbr_samples': self.scene['nbr_samples']
         }
         self.all_info['scene_info'] = scene_info
 
@@ -379,7 +380,8 @@ class NuScenesEnv(NuScenesAgent):
             plt.show()
 
     def step(self, action:np.ndarray=None, render_info={}):
-        self.py_logger.debug(f"received action: {action}")
+        if self.py_logger is not None:
+            self.py_logger.debug(f"received action: {action}")
         #### render ####
         if len(self.config['render_type']) > 0:
             if 'control_plots' in self.config['render_elements']:
@@ -388,11 +390,15 @@ class NuScenesEnv(NuScenesAgent):
                 self.ap_timesteps.append(self.time)
             self.render(render_info)
 
-        if self.config['control_mode'] == 'position':
+        if action is None:
+            self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
+            self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
+
+        if self.config['control_mode'] == 'position' and action is not None:
             self.sim_ego_pos_gb = action
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
 
-        if self.config['control_mode'] == 'kinematics':
+        if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
             sim_ego_speed = action[0]
             sim_ego_yaw_rate = action[1]

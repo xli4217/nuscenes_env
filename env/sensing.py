@@ -37,7 +37,8 @@ from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D
 class Sensor(NuScenesAgent):
     def __init__(self, config={}, helper=None, py_logger=None, tb_logger=None):
         self.config =  {
-            'NuScenesAgent_config':{}
+            'NuScenesAgent_config':{},
+            'sensing_patch_size': (50,50)
         }
         self.config.update(config)
 
@@ -79,8 +80,8 @@ class Sensor(NuScenesAgent):
         }
 
         #### define patch ####
-        sensing_patch_width = 50
-        sensing_patch_length = 50
+        sensing_patch_width = self.config['sensing_patch_size'][0]
+        sensing_patch_length = self.config['sensing_patch_size'][1]
 
         # patch_center_before_rotation = np.array([ego_pos[0],
         #                                          ego_pos[1] + sensing_patch_length/2])
@@ -131,7 +132,7 @@ class Sensor(NuScenesAgent):
             'polygon': sensing_patch
         }
         # get agent_info in patch
-        agent_info = self.get_agent_info(sample, sensing_patch)
+        agent_info = self.get_agent_info(sample, sensing_patch, nusc_map)
 
         # get map info in patch
         map_info = self.get_map_info(ego_pos,
@@ -191,7 +192,7 @@ class Sensor(NuScenesAgent):
             'ego_high_level_motion': ego_high_level_motion
         }
         
-    def get_agent_info(self, sample, sensing_patch):
+    def get_agent_info(self, sample, sensing_patch, nusc_map):
         agent_info = []
         for ann_token in sample['anns']:
             ann = self.nusc.get('sample_annotation', ann_token)
@@ -203,24 +204,24 @@ class Sensor(NuScenesAgent):
                 attribute = ""
 
             agent_pos = [ann['translation'][0], ann['translation'][1]]
-            
+
             include = False
             #### Cars ####
             if 'vehicle' in category and 'parked' not in attribute and self.in_shapely_polygon(agent_pos, sensing_patch):
                 include = True
                 agent_type = 'car'
-                
+
             #### pedestrians ####
             if 'pedestrian' in category and not 'stroller' in category and not 'wheelchair' in category and self.in_shapely_polygon(agent_pos, sensing_patch):
                 include = True
                 agent_type = "pedestrian"
-                
+
             if include:
                 agent_yaw = Quaternion(ann['rotation'])
                 agent_yaw = quaternion_yaw(agent_yaw)
                 agent_yaw = angle_of_rotation(agent_yaw)
                 agent_yaw_deg = np.rad2deg(agent_yaw)
-                
+
                 agent_vel = self.helper.get_velocity_for_agent(instance_token, sample['token'])
                 agent_acc = self.helper.get_acceleration_for_agent(instance_token, sample['token'])
                 agent_heading_change_rate = self.helper.get_heading_change_rate_for_agent(instance_token, sample['token'])
@@ -230,14 +231,15 @@ class Sensor(NuScenesAgent):
                                                                 self.na_config['pred_horizon'],
                                                                 in_agent_frame=False,
                                                                 just_xy=True)
-            
+
                 agent_past = self.helper.get_past_for_agent(instance_token,
                                                             sample['token'],
                                                             self.na_config['obs_horizon'],
                                                             in_agent_frame=False,
                                                             just_xy=True)
-   
-    
+
+                agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
+
                 tmp_agent_info = {
                     'instance_token': instance_token,
                     'type': agent_type,
@@ -250,8 +252,10 @@ class Sensor(NuScenesAgent):
                     'acceleration': agent_acc,
                     'heading_change_rate': agent_heading_change_rate,
                     'past': agent_past,
-                    'future': agent_future
+                    'future': agent_future,
+                    'road_objects': agent_on_road_objects
                 }
+
 
                 agent_info.append(tmp_agent_info)
 

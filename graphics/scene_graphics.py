@@ -103,7 +103,7 @@ class SceneGraphics(NuScenesAgent):
                     'camera': [[4,6], [0,6]]
                 }
             }
-        
+
         img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
 
         component_img_list = {}
@@ -113,7 +113,7 @@ class SceneGraphics(NuScenesAgent):
             img_list = np.array(img_list)[idx]
             nb_images = len(img_list)
             component_img_list[k] = img_list
-             
+
  
         fig = plt.figure(figsize=video_layout['figsize'], constrained_layout=False)
         gs = fig.add_gridspec(nrows=video_layout['nb_rows'], ncols=video_layout['nb_cols'], wspace=0.01)
@@ -136,7 +136,6 @@ class SceneGraphics(NuScenesAgent):
             animation.save(video_save_dir+'/video.mp4')
         return animation
 
-        
     def plot_ego_scene(self,
                        ego_centric=True,
                        sample_token:str=None,
@@ -156,7 +155,7 @@ class SceneGraphics(NuScenesAgent):
                        other_images_to_be_saved=None,
                        render_additional=None,
                        plot_human_ego=True,
-                       patch_margin=30
+                       patch_margin=30,
     ):
 
         '''
@@ -231,9 +230,9 @@ class SceneGraphics(NuScenesAgent):
 
         #### save stuff ####
         if save_pkl_dir is not None:
+            p = os.path.join(save_pkl_dir, idx+"_"+sample_token+".pkl")
             with open(p, 'wb') as f:
-                p = os.path.join(save_pkl_dir, idx+"_"+sample_token+".pkl")
-                cloudpickle.dump(ax, p)
+                cloudpickle.dump(ax, f)
 
         if save_img_dir is not None:
             p = os.path.join(save_img_dir, idx+"_"+sample_token+"_birdseye.png")
@@ -280,7 +279,8 @@ class SceneGraphics(NuScenesAgent):
                          render_additional=None,
                          plot_human_ego=True,
                          patch_margin=30,
-                         sim_ego_pose=None
+                         sim_ego_pose=None,
+                         save_image_ax=False
     ):
 
         if paper_ready:
@@ -352,8 +352,6 @@ class SceneGraphics(NuScenesAgent):
                     sim_ego_pose['translation'][0]+patch_margin,
                     sim_ego_pose['translation'][1]+patch_margin,
                 )
-
-
 
         #### read from saved path if present ####
         read_img = False
