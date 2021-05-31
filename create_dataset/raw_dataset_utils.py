@@ -39,7 +39,8 @@ def get_raw_data_pd_dict_from_obs(observation):
         'instance_quat': [],
         'instance_vel': [],
         'instance_past': [],
-        'instance_future':[]
+        'instance_future':[],
+        'instance_road_objects':[]
     }
 
     nbr_ados = len(observation['sensor_info']['agent_info'])
@@ -52,6 +53,7 @@ def get_raw_data_pd_dict_from_obs(observation):
         instance_dict['instance_vel'].append(agent['velocity'])
         instance_dict['instance_past'].append(agent['past'])
         instance_dict['instance_future'].append(agent['future'])
+        instance_dict['instance_road_objects'].append(agent['road_objects'])
 
     raw_data_pd_dict_expand = {}
     for k, v in raw_data_pd_dict.items():

@@ -46,7 +46,7 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
             lane_poses_local.append(lane_local)
 
     # get instance obs info
-    out = get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=num_closest_obs)
+    out = get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=num_closest_obs, nusc_map=nusc_map)
     if out is None:
         return None
 
@@ -81,23 +81,33 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     return res
 
 
-def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5):
+def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
     # get instance information
     pos = []
     vel = []
     tokens = []
     ado_futures = []
     ado_past = []
+    ado_road_objects = []
     for idx, row in sample_df.iterrows():
         ego_pos = np.array(row['ego_future_pos'][0])[:2]
         ego_quat = np.array(row['ego_future_quat'][0])
 
         if 'vehicle' in row['instance_category'] and 'parked' not in row['instance_attribute']:
             # get future
-            ado_future_global = row['instance_future']
 
-            if ado_future_global.shape[0] != 12:
+            #### ado map data ####
+            ado_road_objects.append(row.instance_road_objects)
+            if row.instance_road_objects['road_segment'] != "":
+                for record in nusc_map.road_segment:
+                    if record['token'] == row.instance_road_objects['road_segment'] and record['is_intersection']:
+                        ado_road_objects[-1]['intersection'] = row.instance_road_objects['road_segment']
+
+
+            if row['instance_future'].shape[0] < 6:
                 continue
+            ado_future_global = row['instance_future'][:6]
+
             ado_future_local = convert_global_coords_to_local(ado_future_global, ego_pos, ego_quat)
 
             ado_futures.append(ado_future_local)
@@ -150,7 +160,8 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5):
         'ado_futures': closest_n_ado_futures,
         'ado_past': closest_n_ado_past,
         'ado_vel': closest_n_inst_vel,
-        'instance_tokens': closest_n_tokens
+        'instance_tokens': closest_n_tokens,
+        'ado_road_objects': ado_road_objects
     }
 
     return out
