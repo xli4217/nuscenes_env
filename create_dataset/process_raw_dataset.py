@@ -128,8 +128,9 @@ if __name__ == "__main__":
             }
         },
         'num_workers': 2,
-        'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'raw_dataset')
+        'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw')
     }
 
     cls = ProcessRawDataset(config=config)
-    cls.get_raw_data(scene_name='scene-0061')
+    #cls.get_raw_data(scene_name='scene-0061')
+    cls.get_raw_data()

@@ -238,7 +238,7 @@ class Sensor(NuScenesAgent):
                                                             in_agent_frame=False,
                                                             just_xy=True)
 
-                agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
+                # agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
 
                 tmp_agent_info = {
                     'instance_token': instance_token,
@@ -252,8 +252,8 @@ class Sensor(NuScenesAgent):
                     'acceleration': agent_acc,
                     'heading_change_rate': agent_heading_change_rate,
                     'past': agent_past,
-                    'future': agent_future,
-                    'road_objects': agent_on_road_objects
+                    'future': agent_future
+                    #'road_objects': agent_on_road_objects
                 }
 
 

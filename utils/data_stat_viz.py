@@ -74,9 +74,7 @@ class StatViz(object):
                 )
 
                 fig_individual.show()
-                
-                
-                # plot overlapping radar
+
                 fig.add_trace(go.Scatterpolar(
                     r=v,
                     theta=categories,
@@ -86,7 +84,7 @@ class StatViz(object):
                     opacity=0.5
                 ))
                 i += 1
-                
+
         fig.update_layout(
             font=dict(
                 size=18
