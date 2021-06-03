@@ -101,7 +101,6 @@ class ProcessRawDataset(object):
 
 
 if __name__ == "__main__":
-    from nuscenes_env.env.env import NuScenesEnv
     import os
 
     RawData_NuScenesAgent_config = {
