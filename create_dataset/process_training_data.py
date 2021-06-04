@@ -63,6 +63,11 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     ego_future_local = convert_global_coords_to_local(ego_future_global, ego_pos_global, ego_quat_global)
     ego_past_local = convert_global_coords_to_local(ego_past_global, ego_pos_global, ego_quat_global)
 
+    ego_road_objects = sample_df.iloc[0].ego_road_objects
+    if ego_road_objects['road_segment'] != "":
+        for record in nusc_map.road_segment:
+            if record['token'] == ego_road_objects['road_segment'] and record['is_intersection']:
+                ego_road_objects['intersection'] = record['token']
 
     ## res ##
     res = {
@@ -74,7 +79,9 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
         'ego_past': ego_past_local,
         'ego_observations': ego_vec,
         'ego_vel': ego_vel,
-        'discretized_lane': lane_poses_local
+        'ego_raster': sample_df.iloc[0].ego_raster_img,
+        'discretized_lane': lane_poses_local,
+        'ego_road_objects': ego_road_objects
     }
     res.update(out)
 

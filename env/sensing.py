@@ -38,12 +38,14 @@ class Sensor(NuScenesAgent):
     def __init__(self, config={}, helper=None, py_logger=None, tb_logger=None):
         self.config =  {
             'NuScenesAgent_config':{},
-            'sensing_patch_size': (50,50)
+            'sensing_patch_size': (50,50),
+            'agent_road_objects': True
         }
         self.config.update(config)
 
         super().__init__(config=self.config['NuScenesAgent_config'], helper=helper, py_logger=py_logger, tb_logger=tb_logger)
 
+        self.agent_road_objects = self.config['agent_road_objects']
 
 
     def update_all_info(self):
@@ -69,6 +71,9 @@ class Sensor(NuScenesAgent):
         ego_yaw_rad = angle_of_rotation(ego_yaw)
         ego_yaw_degrees = np.rad2deg(ego_yaw_rad)
 
+        ego_on_road_objects = None
+        if self.agent_road_objects:
+            ego_on_road_objects = nusc_map.layers_on_point(ego_pos[0], ego_pos[1])
 
         ego_info = {
             'translation': ego_pos,
@@ -76,7 +81,8 @@ class Sensor(NuScenesAgent):
             'rotation_quat': ego_quat,
             'velocity': 0,
             'acceleration': 0,
-            'heading_change_rate':0
+            'heading_change_rate':0,
+            'road_objects': ego_on_road_objects
         }
 
         #### define patch ####
@@ -191,7 +197,7 @@ class Sensor(NuScenesAgent):
             'ego_steering_deg_traj':ego_steering_deg_traj,
             'ego_high_level_motion': ego_high_level_motion
         }
-        
+
     def get_agent_info(self, sample, sensing_patch, nusc_map):
         agent_info = []
         for ann_token in sample['anns']:
@@ -238,7 +244,9 @@ class Sensor(NuScenesAgent):
                                                             in_agent_frame=False,
                                                             just_xy=True)
 
-                # agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
+                agent_on_road_objects = None
+                if self.agent_road_objects:
+                    agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
 
                 tmp_agent_info = {
                     'instance_token': instance_token,
@@ -252,8 +260,8 @@ class Sensor(NuScenesAgent):
                     'acceleration': agent_acc,
                     'heading_change_rate': agent_heading_change_rate,
                     'past': agent_past,
-                    'future': agent_future
-                    #'road_objects': agent_on_road_objects
+                    'future': agent_future,
+                    'road_objects': agent_on_road_objects
                 }
 
 

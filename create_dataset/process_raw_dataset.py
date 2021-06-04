@@ -122,8 +122,7 @@ if __name__ == "__main__":
                 'NuScenesAgent_config':RawData_NuScenesAgent_config,
                 'Sensor_config':{},
                 'SceneGraphics_config':{},
-                #'all_info_fields': ['center_lane', 'raster_image']
-                'all_info_fields': ['center_lane']
+                'all_info_fields': ['center_lane', 'raster_image']
             }
         },
         'num_workers': 2,

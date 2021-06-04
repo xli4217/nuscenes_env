@@ -4,7 +4,7 @@ import numpy as np
 def get_raw_data_pd_dict_from_obs(observation):
     scene_info = observation['scene_info']
     can_info = observation['sensor_info']['can_info']
-
+    
     raw_data_pd_dict = {
         #### scene level ####
         'scene_token': [scene_info['scene_token']],
@@ -26,8 +26,9 @@ def get_raw_data_pd_dict_from_obs(observation):
         'ego_future_pos': [observation['ego_future_pos']],
         'ego_past_quat': [observation['ego_past_quat']],
         'ego_future_quat': [observation['ego_future_quat']],
-        #'ego_raster_img': [observation['raster_image']],
+        'ego_raster_img': [observation['raster_image']],
         'ego_future_lanes': [observation['gt_future_lanes']],
+        'ego_road_objects': [observation['sensor_info']['ego_info']['road_objects']]
     }
 
     #### instance level ####
@@ -40,7 +41,7 @@ def get_raw_data_pd_dict_from_obs(observation):
         'instance_vel': [],
         'instance_past': [],
         'instance_future':[],
-        #'instance_road_objects':[]
+        'instance_road_objects':[]
     }
 
     nbr_ados = len(observation['sensor_info']['agent_info'])
@@ -53,7 +54,7 @@ def get_raw_data_pd_dict_from_obs(observation):
         instance_dict['instance_vel'].append(agent['velocity'])
         instance_dict['instance_past'].append(agent['past'])
         instance_dict['instance_future'].append(agent['future'])
-        #instance_dict['instance_road_objects'].append(agent['road_objects'])
+        instance_dict['instance_road_objects'].append(agent['road_objects'])
 
     raw_data_pd_dict_expand = {}
     for k, v in raw_data_pd_dict.items():
