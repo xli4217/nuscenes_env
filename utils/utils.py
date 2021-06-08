@@ -13,9 +13,19 @@ from pyvirtualdisplay import Display
 from pathlib import Path
 import base64
 from celluloid import Camera
+import matplotlib.pyplot as plt
+import tqdm
+import os
 
-display = Display(visible=0, size=(1400, 900))
-display.start()
+#display = Display(visible=0, size=(1400, 900))
+#display.start()
+
+def process_to_len(a, desired_length, name=""):
+    if a.shape[0] < desired_length:
+        a = np.pad(a, [(0, desired_length - a.shape[0]), (0,0)], mode='edge')
+    else:
+        a = a[:desired_length, :]
+    return a
 
 def get_dataframe_summary(d):
     print(f"data shape: {d.shape}")
@@ -160,29 +170,57 @@ def show_video_in_jupyter(path):
     ipythondisplay.display(ipythondisplay.HTML(data="<br>".join(html)))
 
 
-def generate_video_from_images(self, img_path:str, video_save_path:str=None):
-        fig = plt.figure(figsize=(10,10))
-        ax = fig.gca()
 
-        ax.axis('off')
+def make_video_from_images(image_dir:str=None, video_save_dir:str=None, video_layout=None):
+        if video_layout is None:
+            video_layout = {
+                'figsize': (15,15),
+                'nb_rows': 6,
+                'nb_cols': 6,
+                'components': {
+                    'birdseye': [[0,4], [0,6]],
+                    'camera': [[4,6], [0,6]]
+                },
+                'fixed_image': {
+                    'path': None,
+                    'layout': [[],[]]
+                }
 
-        img_name_int_list = [int(str(p).split("/")[-1][5:-4]) for p in path.rglob('*.jpg')]
-        idx = np.argsort(np.array(img_name_int_list))
+            }
 
-        img_name_list = np.array([p for p in path.rglob('*.jpg')])[idx]
-        print(img_name_list)
-        for p in img_name_list:
-            img = plt.imread(p)
-            plt.imshow(img)
+        img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
+
+        component_img_list = {}
+        for k, v in video_layout['components'].items():
+            img_list = [p for p in img_fn_list if k in p and 'checkpoint' not in p]
+            idx = np.argsort(np.array([int(p[:2]) for p in img_list]))
+            img_list = np.array(img_list)[idx]
+            nb_images = len(img_list)
+            component_img_list[k] = img_list
+
+ 
+        fig = plt.figure(figsize=video_layout['figsize'], constrained_layout=False)
+        gs = fig.add_gridspec(nrows=video_layout['nb_rows'], ncols=video_layout['nb_cols'], wspace=0.01)
+        axes = {}
+        for k, v in video_layout['components'].items():
+            ax = fig.add_subplot(gs[v[0][0]:v[0][1], v[1][0]:v[1][1]])
+            ax.axis('off')
+            axes[k] = ax
+
+        camera = Camera(fig)
+        for i in tqdm.tqdm(range(nb_images)):
+            for k, v in component_img_list.items():
+                if i < len(v):
+                    axes[k].imshow(plt.imread(os.path.join(image_dir, v[i])))
             camera.snap()
-    
+
         animation = camera.animate()
 
-        if video_save_path is not None:
-            animation.save(video_save_path)
+        if video_save_dir is not None:
+            animation.save(video_save_dir+'/video.mp4')
         return animation
 
-    
+
 def class_from_path(path: str) -> Callable:
     module_name, class_name = path.rsplit(".", 1)
     class_object = getattr(importlib.import_module(module_name), class_name)

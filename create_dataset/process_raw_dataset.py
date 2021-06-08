@@ -34,7 +34,8 @@ class ProcessRawDataset(object):
                 'config': {}
             },
             'num_workers': 1,
-            'data_save_dir': ""
+            'data_save_dir': "",
+            'get_raw_data_pd_dict_from_obs': "",
         })
 
         self.config.update(config)
@@ -42,6 +43,7 @@ class ProcessRawDataset(object):
         self.env = class_from_path(self.config['Env']['type'])(config=self.config['Env']['config'])
         self.nb_scenes = len(self.env.nusc.scene)
 
+        self.get_raw_data_pd_dict_from_obs = class_from_path(self.config['get_raw_data_pd_dict_from_obs'])
         if self.config['num_workers'] > 1:
             ray.shutdown()
             if os.environ['COMPUTE_LOCATION'] == 'local':
@@ -126,7 +128,8 @@ if __name__ == "__main__":
             }
         },
         'num_workers': 2,
-        'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw')
+        'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw'),
+        'get_raw_data_pd_dict_from_obs': "create_dataset.raw_dataset_utils.get_raw_data_pd_dict_from_obs"
     }
 
     cls = ProcessRawDataset(config=config)

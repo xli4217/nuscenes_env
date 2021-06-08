@@ -4,7 +4,7 @@ import numpy as np
 def get_raw_data_pd_dict_from_obs(observation):
     scene_info = observation['scene_info']
     can_info = observation['sensor_info']['can_info']
-    
+
     raw_data_pd_dict = {
         #### scene level ####
         'scene_token': [scene_info['scene_token']],
@@ -61,5 +61,5 @@ def get_raw_data_pd_dict_from_obs(observation):
         raw_data_pd_dict_expand[k] = v * nbr_ados
 
     raw_data_pd_dict_expand.update(instance_dict)
-        
+
     return raw_data_pd_dict_expand

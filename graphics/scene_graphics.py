@@ -176,6 +176,7 @@ class SceneGraphics(NuScenesAgent):
         }
         '''
 
+
         if sample_token is not None and scene_token is not None:
             raise ValueError("only one of sample_token or scene_token should be provided")
 
@@ -187,6 +188,7 @@ class SceneGraphics(NuScenesAgent):
             plot_list = self.plot_list
         if sensor_info is not None:
             plot_list += ['sensing_patch']
+            self.plot_list += ['sensing_patch']
 
         # this decides whether plotting in ego_centric or sim_ego_centric
         if ego_traj is not None:
@@ -619,8 +621,8 @@ class SceneGraphics(NuScenesAgent):
                                               #edgecolor='green',
                                               #linestyle='--',
                                               linewidth=2)
-
-        ax.add_patch(polygon)
+        if 'sensing_patch' in self.plot_list:
+            ax.add_patch(polygon)
 
         
         #### plot ego ####

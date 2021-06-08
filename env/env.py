@@ -88,6 +88,18 @@ class NuScenesEnv(NuScenesAgent):
         }
         self.all_info['scene_info'] = scene_info
 
+        #### sensor info ####
+        if self.instance_token is None:
+            instance_based = False
+        else:
+            instance_based = True
+        sensor_info = self.sensor.get_info(self.sample['token'], ego_pos=self.sim_ego_pos_gb, ego_quat=self.sim_ego_quat_gb, instance_based=instance_based)
+
+        filtered_agent_info = self.filter_agent_info(sensor_info['agent_info'])
+        sensor_info['agent_info'] = filtered_agent_info
+        self.all_info['sensor_info'] = sensor_info
+
+
         #### sample info ####
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['sample_token'] = self.sample['token']
@@ -112,6 +124,8 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_pos_gb'] = np.array(ego_pose['translation'])[:2]
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
+        self.all_info['ego_speed'] = sensor_info['can_info']['ego_speed_traj'][self.sample_idx]
+        self.all_info['ego_yaw_rate'] = sensor_info['can_info']['ego_rotation_rate_traj'][self.sample_idx][-1]
 
         self.all_info['ego_past_pos'] = np.array(self.true_ego_pos_traj)[0:self.sample_idx]
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
@@ -122,6 +136,8 @@ class NuScenesEnv(NuScenesAgent):
         if self.sim_ego_pos_gb is None:
             self.sim_ego_pos_gb = np.array(ego_pose['translation'])[:2]
             self.sim_ego_quat_gb = np.array(ego_pose['rotation'])
+            self.sim_ego_speed = self.all_info['ego_speed']
+            self.sim_ego_yaw_rate = self.all_info['ego_yaw_rate']
 
             sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
             self.sim_ego_yaw = quaternion_yaw(sim_ego_yaw)
@@ -131,24 +147,16 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         self.all_info['sim_ego_yaw_rad'] = self.sim_ego_yaw
+        self.all_info['sim_ego_speed'] = self.sim_ego_speed
+        self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
 
         #### future lanes ####
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
         self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
 
-        #### sensor info ####
-        if self.instance_token is None:
-            instance_based = False
-        else:
-            instance_based = True
-        sensor_info = self.sensor.get_info(self.sample['token'], ego_pos=self.sim_ego_pos_gb, ego_quat=self.sim_ego_quat_gb, instance_based=instance_based)
 
-        filtered_agent_info = self.filter_agent_info(sensor_info['agent_info'])
-        sensor_info['agent_info'] = filtered_agent_info
-        self.all_info['sensor_info'] = sensor_info
-
-        #### rasterized image (TODO: support for sim ego and ado) ####
+        #### rasterized image ####
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
             #### ego raster img ####
             ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=ego_pose, include_history=False)
@@ -393,6 +401,8 @@ class NuScenesEnv(NuScenesAgent):
         if action is None:
             self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
+            self.sim_ego_speed = self.all_info['ego_speed']
+            self.sim_ego_yaw_rate = self.all_info['ego_yaw_rate']
 
         if self.config['control_mode'] == 'position' and action is not None:
             self.sim_ego_pos_gb = action
@@ -400,18 +410,17 @@ class NuScenesEnv(NuScenesAgent):
 
         if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
-            sim_ego_speed = action[0]
-            sim_ego_yaw_rate = action[1]
+            self.sim_ego_speed = action[0]
+            self.sim_ego_yaw_rate = action[1]
 
-            dx_local = sim_ego_speed * np.array([np.cos(self.sim_ego_yaw), np.sin(self.sim_ego_yaw)]) * 0.5
+            dx_local = self.sim_ego_speed * np.array([np.cos(self.sim_ego_yaw), np.sin(self.sim_ego_yaw)]) * 0.5
 
             self.sim_ego_pos_gb += dx_local
 
-            self.sim_ego_yaw += sim_ego_yaw_rate * 0.5
-            print(np.rad2deg(self.sim_ego_yaw))
+            self.sim_ego_yaw += self.sim_ego_yaw_rate * 0.5
             q = Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw))
             self.sim_ego_quat_gb = [q[0], q[1], q[2], q[3]]
-            
+
         done = False
         if self.inst_ann is None:
             if self.sample['next'] == "":
@@ -427,58 +436,10 @@ class NuScenesEnv(NuScenesAgent):
                 self.inst_ann = self.nusc.get('sample_annotation', self.ann_token)
                 self.sample_token = self.inst_ann['sample_token']
                 self.sample = self.nusc.get('sample', self.sample_token)
-                
+
         self.update_all_info()
         self.sample_idx += 1
         self.time += 0.5
         return self.get_observation(), done
-        
 
-    def make_video_from_images(self, image_dir:str=None, video_save_dir:str=None, video_layout=None):
-        if video_layout is None:
-            video_layout = {
-                'figsize': (15,15),
-                'nb_rows': 6,
-                'nb_cols': 6,
-                'components': {
-                    'birdseye': [[0,4], [0,6]],
-                    'camera': [[4,6], [0,6]]
-                },
-                'fixed_image': {
-                    'path': None,
-                    'layout': [[],[]]
-                }
 
-            }
-        
-        img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
-
-        component_img_list = {}
-        for k, v in video_layout['components'].items():
-            img_list = [p for p in img_fn_list if k in p and 'checkpoint' not in p]
-            idx = np.argsort(np.array([int(p[:2]) for p in img_list]))
-            img_list = np.array(img_list)[idx]
-            nb_images = len(img_list)
-            component_img_list[k] = img_list
-
- 
-        fig = plt.figure(figsize=video_layout['figsize'], constrained_layout=False)
-        gs = fig.add_gridspec(nrows=video_layout['nb_rows'], ncols=video_layout['nb_cols'], wspace=0.01)
-        axes = {}
-        for k, v in video_layout['components'].items():
-            ax = fig.add_subplot(gs[v[0][0]:v[0][1], v[1][0]:v[1][1]])
-            ax.axis('off')
-            axes[k] = ax
-
-        camera = Camera(fig)
-
-        for i in tqdm.tqdm(range(nb_images)):
-            for k, v in component_img_list.items():
-                axes[k].imshow(plt.imread(os.path.join(image_dir, v[i])))
-            camera.snap()
-
-        animation = camera.animate()
-
-        if video_save_dir is not None:
-            animation.save(video_save_dir+'/video.mp4')
-        return animation
