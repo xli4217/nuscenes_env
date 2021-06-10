@@ -124,8 +124,16 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_pos_gb'] = np.array(ego_pose['translation'])[:2]
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
-        self.all_info['ego_speed'] = sensor_info['can_info']['ego_speed_traj'][self.sample_idx]
-        self.all_info['ego_yaw_rate'] = sensor_info['can_info']['ego_rotation_rate_traj'][self.sample_idx][-1]
+
+        if self.sample_idx < len(sensor_info['can_info']['ego_speed_traj'])-1:
+            ego_speed = sensor_info['can_info']['ego_speed_traj'][self.sample_idx]
+            ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][self.sample_idx][-1]
+        else:
+            ego_speed = sensor_info['can_info']['ego_speed_traj'][-1]
+            ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][-1][-1]
+
+        self.all_info['ego_speed'] = ego_speed
+        self.all_info['ego_yaw_rate'] = ego_yaw_rate
 
         self.all_info['ego_past_pos'] = np.array(self.true_ego_pos_traj)[0:self.sample_idx]
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
@@ -392,7 +400,7 @@ class NuScenesEnv(NuScenesAgent):
             self.py_logger.debug(f"received action: {action}")
         #### render ####
         if len(self.config['render_type']) > 0:
-            if 'control_plots' in self.config['render_elements']:
+            if 'control_plots' in self.config['render_elements'] and action is not None:
                 self.ap_speed.append(action[0])
                 self.ap_steering.append(action[1])
                 self.ap_timesteps.append(self.time)

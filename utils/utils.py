@@ -20,12 +20,33 @@ import os
 #display = Display(visible=0, size=(1400, 900))
 #display.start()
 
+def inspect_processed_dataset_dimensions(df):
+    """check to see if all columns have the same shape
+
+    :param df: pandas dataframe
+    :returns: None
+
+    """
+    tmp = {}
+    for idx, row in df.iterrows():
+        for k in df.columns.tolist():
+            if k not in list(tmp.keys()):
+                tmp[k] = [row[k].shape]
+            else:
+                tmp[k].append(row[k].shape)
+
+    for k, v in tmp.items():
+        v = np.array(v)
+        print(k, (v ==v[0]).all())
+
 def process_to_len(a, desired_length, name=""):
-    if a.shape[0] < desired_length:
-        a = np.pad(a, [(0, desired_length - a.shape[0]), (0,0)], mode='edge')
-    else:
-        a = a[:desired_length, :]
+    if a.ndim == 2:
+        if a.shape[0] < desired_length:
+            a = np.pad(a, [(0, desired_length - a.shape[0]), (0,0)], mode='edge')
+        else:
+            a = a[:desired_length, :]
     return a
+
 
 def get_dataframe_summary(d):
     print(f"data shape: {d.shape}")
