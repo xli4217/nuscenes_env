@@ -135,6 +135,8 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_speed'] = ego_speed
         self.all_info['ego_yaw_rate'] = ego_yaw_rate
 
+        self.all_info['ego_pos_traj'] = np.array(self.true_ego_pos_traj)
+        self.all_info['ego_quat_traj'] = np.array(self.true_ego_quat_traj)
         self.all_info['ego_past_pos'] = np.array(self.true_ego_pos_traj)[0:self.sample_idx]
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
         self.all_info['ego_past_quat'] = np.array(self.true_ego_quat_traj)[0:self.sample_idx]
@@ -152,11 +154,16 @@ class NuScenesEnv(NuScenesAgent):
             #self.sim_ego_yaw = angle_of_rotation(sim_ego_yaw)
 
         #### sim ego pose ####
+        self.sim_ego_pos_traj.append(self.sim_ego_pos_gb.copy())
+        self.sim_ego_quat_traj.append(self.sim_ego_quat_gb.copy())
+
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         self.all_info['sim_ego_yaw_rad'] = self.sim_ego_yaw
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
+        self.all_info['sim_ego_pos_traj'] = self.sim_ego_pos_traj
+        self.all_info['sim_ego_quat_traj'] = self.sim_ego_quat_traj
 
         #### future lanes ####
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
@@ -211,7 +218,13 @@ class NuScenesEnv(NuScenesAgent):
         self.sample_token = self.sample['token']
 
         #### get ego traj ####
-        sample_tokens = self.nusc.field2token('sample', 'scene_token', self.scene['token'])
+        #sample_tokens = self.nusc.field2token('sample', 'scene_token', self.scene['token'])
+        sample_tokens = []
+        sample = copy.deepcopy(self.sample)
+        while sample['next'] != "":
+            sample_tokens.append(sample['token'])
+            sample = self.nusc.get('sample', sample['next'])
+
         self.true_ego_pos_traj = []
         self.true_ego_quat_traj = []
         for sample_token in sample_tokens:
@@ -226,6 +239,8 @@ class NuScenesEnv(NuScenesAgent):
 
         self.init_ego_pos = self.true_ego_pos_traj[0]
         self.init_ego_quat = self.true_ego_quat_traj[0]
+        self.sim_ego_pos_traj = []
+        self.sim_ego_quat_traj = []
         self.center_agent = 'ego'
 
     def reset_ado(self, instance_token):
@@ -445,9 +460,9 @@ class NuScenesEnv(NuScenesAgent):
                 self.sample_token = self.inst_ann['sample_token']
                 self.sample = self.nusc.get('sample', self.sample_token)
 
-        self.update_all_info()
         self.sample_idx += 1
         self.time += 0.5
+        self.update_all_info()
         return self.get_observation(), done
 
 
