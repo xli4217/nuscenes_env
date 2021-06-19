@@ -166,10 +166,9 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['sim_ego_quat_traj'] = self.sim_ego_quat_traj
 
         #### future lanes ####
-        self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
-
         self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
 
+        self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
         #### rasterized image ####
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
@@ -382,6 +381,8 @@ class NuScenesEnv(NuScenesAgent):
                 render_additional['lines'] = render_info['lines']
             if 'scatters' in render_info.keys():
                 render_additional['scatters'] = render_info['scatters']
+            if 'text_boxes' in render_info.keys():
+                render_additional['text_boxes'] = render_info['text_boxes']
 
             if self.instance_token is None:
                 ego_centric = True
@@ -410,16 +411,19 @@ class NuScenesEnv(NuScenesAgent):
             )
             plt.show()
 
+            return fig, ax
+
     def step(self, action:np.ndarray=None, render_info={}):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
         #### render ####
+        fig, ax = None, None
         if len(self.config['render_type']) > 0:
             if 'control_plots' in self.config['render_elements'] and action is not None:
                 self.ap_speed.append(action[0])
                 self.ap_steering.append(action[1])
                 self.ap_timesteps.append(self.time)
-            self.render(render_info)
+            fig, ax = self.render(render_info)
 
         if action is None:
             self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
@@ -463,6 +467,9 @@ class NuScenesEnv(NuScenesAgent):
         self.sample_idx += 1
         self.time += 0.5
         self.update_all_info()
-        return self.get_observation(), done
+        other = {
+            'render_ax': ax
+        }
+        return self.get_observation(), done, other
 
 

@@ -520,6 +520,17 @@ class SceneGraphics(NuScenesAgent):
             for s in render_dict['scatters']:
                 ax.scatter(s['traj'][:,0], s['traj'][:,1], color=s['color'], s=30, zorder=700)
 
+
+        if 'text_boxes' in render_dict.keys():
+            # text_boxes = [
+            #     {
+            #         'text_string': <str>,
+            #         'pos': np.ndarray
+            #     }
+            # ]
+            for textbox in render_dict['text_boxes']:
+                self.plot_text_box(ax, textbox['text_string'], textbox['pos'])
+
     def in_my_patch(self, pos, my_patch):
         if pos[0] > my_patch[0] and pos[1] > my_patch[1] and pos[0] < my_patch[2] and pos[1] < my_patch[3]:
             return True
@@ -584,7 +595,7 @@ class SceneGraphics(NuScenesAgent):
 
     def plot_text_box(self, ax, text_string:str, pos: np.ndarray, facecolor: str='wheat'):
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props)
+        ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props, zorder=800)
 
 
     def plot_contour(self, ax, contour):

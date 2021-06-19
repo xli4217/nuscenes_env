@@ -330,14 +330,14 @@ class Sensor(NuScenesAgent):
         closest_lane_poses = np.array(arcline_path_utils.discretize_lane(closest_lane_record, resolution_meters=1))
         map_info['closest_lane'] = {'record': closest_lane_record, 'poses': closest_lane_poses}
 
-        incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
-        incoming_lane_data = []
-        for incoming_lane_id in incoming_lane_ids:
-            record = nusc_map.get_lane(incoming_lane_id)
-            poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
-            incoming_lane_data.append({'record': record, 'poses': poses})
+        # incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
+        # incoming_lane_data = []
+        # for incoming_lane_id in incoming_lane_ids:
+        #     record = nusc_map.get_lane(incoming_lane_id)
+        #     poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
+        #     incoming_lane_data.append({'record': record, 'poses': poses})
 
-        map_info['incoming_lanes'] = incoming_lane_data
+        # map_info['incoming_lanes'] = incoming_lane_data
 
         outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane_id)
         outgoing_lane_data = []
