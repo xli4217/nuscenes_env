@@ -39,13 +39,21 @@ def inspect_processed_dataset_dimensions(df):
         v = np.array(v)
         print(k, (v ==v[0]).all())
 
-def process_to_len(a, desired_length, name="", dim=0):
+def process_to_len(a, desired_length, name="", dim=0, before_or_after='after', mode='edge', constant_values=None):
     assert a.ndim >= dim, f"need array to have at least {dim} dimensions, right now it has {a.ndim} dimensions"
     #print(name, a.shape, dim)
     dim_list = [(0,0) for _ in range(a.ndim)]
-    dim_list[dim] = (0, desired_length - a.shape[dim])
+    if before_or_after == 'after':
+        dim_list[dim] = (0, desired_length - a.shape[dim])
+    else:
+        dim_list[dim] = (desired_length - a.shape[dim], 0)
     if a.shape[dim] < desired_length:
-        a = np.pad(a, dim_list, mode='edge')
+        if mode == 'edge':
+            a = np.pad(a, dim_list, mode=mode)
+        elif mode == 'constant':
+            a = np.pad(a, dim_list, mode=mode, constant_values=constant_values)
+        else:
+            raise ValueError(f'mode {mode} not supported')
     else:
         if dim == 0:
             a = a[:desired_length, :]

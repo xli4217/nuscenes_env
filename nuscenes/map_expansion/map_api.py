@@ -567,7 +567,8 @@ class NuScenesMap:
         """
 
         if lane_token not in self.connectivity:
-            raise ValueError(f"{lane_token} is not a valid lane.")
+            return None
+            #raise ValueError(f"{lane_token} is not a valid lane.")
 
         return self.connectivity[lane_token][incoming_outgoing]
 
