@@ -51,6 +51,15 @@ class Sensor(NuScenesAgent):
     def update_all_info(self):
         pass
 
+    def get_road_objects(self, pos, nusc_map):
+        road_objects = nusc_map.layers_on_point(pos[0], pos[1])
+        for k, v in road_objects:
+            if k == 'road_segment':
+                r = nusc_map.get(k, v)
+                if r['is_intersection']:
+                    road_objects['is_intersection'] = True
+        return road_objects
+
     def get_info(self, sample_token: str, ego_pos:np.ndarray=None, ego_quat:np.ndarray=None, instance_based=False):
 
         sample = self.nusc.get('sample', sample_token)
@@ -73,7 +82,7 @@ class Sensor(NuScenesAgent):
 
         ego_on_road_objects = None
         if self.agent_road_objects:
-            ego_on_road_objects = nusc_map.layers_on_point(ego_pos[0], ego_pos[1])
+            ego_on_road_objects = self.get_road_objects(ego_pos[0], ego_pos[1])
 
         ego_info = {
             'translation': ego_pos,
@@ -102,7 +111,6 @@ class Sensor(NuScenesAgent):
         #                                      rotate_center=(ego_pos[0], ego_pos[1]),
         #                                      patch_angle=-ego_yaw_degrees)
 
-        
         patch_center_before_rotation = np.array([ego_pos[0],
                                                  ego_pos[1]])
 
@@ -123,7 +131,6 @@ class Sensor(NuScenesAgent):
         X, Y = np.meshgrid(x, y)
         ### apply rotation
         X, Y = rotate_mesh2D(pos=ego_pos, rot_rad=ego_yaw_rad, X=X, Y=Y, frame='current')
-        
         ## generate sensing patch shapely polygon
         sensing_patch = self.get_patch_coord(patch_box=(patch_center_before_rotation[0],
                                                         patch_center_before_rotation[1],
@@ -150,7 +157,7 @@ class Sensor(NuScenesAgent):
         can_info = None
         if not instance_based:
             can_info = self.get_can_info(scene['name'])
-        
+
         sensing_info = {
             'sample_token':sample_token,
             'sensing_patch':sensing_patch_info,
@@ -246,7 +253,7 @@ class Sensor(NuScenesAgent):
 
                 agent_on_road_objects = None
                 if self.agent_road_objects:
-                    agent_on_road_objects = nusc_map.layers_on_point(agent_pos[0], agent_pos[1])
+                    agent_on_road_objects = self.get_road_objects(agent_pos[0], agent_pos[1])
 
                 tmp_agent_info = {
                     'instance_token': instance_token,
