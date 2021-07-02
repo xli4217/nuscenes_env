@@ -31,7 +31,7 @@ from nuscenes.prediction import PredictHelper, convert_local_coords_to_global, c
 import descartes
 
 from graphics.nuscenes_agent import NuScenesAgent
-from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D
+from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D, process_to_len
 
 
 class Sensor(NuScenesAgent):
@@ -131,6 +131,7 @@ class Sensor(NuScenesAgent):
         X, Y = np.meshgrid(x, y)
         ### apply rotation
         X, Y = rotate_mesh2D(pos=ego_pos, rot_rad=ego_yaw_rad, X=X, Y=Y, frame='current')
+
         ## generate sensing patch shapely polygon
         sensing_patch = self.get_patch_coord(patch_box=(patch_center_before_rotation[0],
                                                         patch_center_before_rotation[1],
@@ -166,7 +167,7 @@ class Sensor(NuScenesAgent):
             'map_info': map_info,
             'can_info': can_info
         }
-        
+
         return sensing_info
 
     def get_can_info(self, scene_name:str=None):
@@ -176,7 +177,7 @@ class Sensor(NuScenesAgent):
         ego_pos_traj = [pm['pos'] for pm in pose_msg][::25]
         ego_rotation_rate_traj = [pm['rotation_rate'] for pm in pose_msg][::25]
         ego_speed_traj = [pm['vel'] for pm in pose_msg][::25]
-    
+
         # Vehicle Monitor message information (original message 2hz, no need to down sample)
         veh_monitor = self.nusc_can.get_messages(scene_name, 'vehicle_monitor')
         ego_speed_traj = [vm['vehicle_speed']*0.28 for vm in veh_monitor]
@@ -255,6 +256,21 @@ class Sensor(NuScenesAgent):
                 if self.agent_road_objects:
                     agent_on_road_objects = self.get_road_objects(agent_pos[0], agent_pos[1])
 
+
+                ## agent nearest lane ##
+                closest_lane_data, incoming_lane_data, outgoing_lane_data = self.get_closest_lane(ann['translation'], nusc_map)
+
+                lane_data = {
+                    'closest_lane_data': closest_lane_data,
+                    'incoming_lane_data': incoming_lane_data,
+                    'outgoing_lane_data': outgoing_lane_data
+                }
+
+                # past_lane = self.get_past_lane(ann['translation'][:2], ann['rotation'], lane_data)
+                # future_lanes = self.get_past_lane(ann['translation'][:2], ann['rotation'], lane_data)
+
+                past_lane, future_lanes = self.get_past_and_future_lanes(ann['translation'][:2], ann['rotation'], lane_data)
+
                 tmp_agent_info = {
                     'instance_token': instance_token,
                     'type': agent_type,
@@ -268,7 +284,9 @@ class Sensor(NuScenesAgent):
                     'heading_change_rate': agent_heading_change_rate,
                     'past': agent_past,
                     'future': agent_future,
-                    'road_objects': agent_on_road_objects
+                    'road_objects': agent_on_road_objects,
+                    'past_lane': past_lane,
+                    'future_lanes': future_lanes
                 }
 
 
@@ -331,28 +349,11 @@ class Sensor(NuScenesAgent):
         map_info['stop_line'] = stop_line_data
 
         #### Get center lane information ####
-        closest_lane_id = nusc_map.get_closest_lane(ego_pos[0], ego_pos[1], radius=2)
-        closest_lane_record = nusc_map.get_lane(closest_lane_id)
 
-        closest_lane_poses = np.array(arcline_path_utils.discretize_lane(closest_lane_record, resolution_meters=1))
-        map_info['closest_lane'] = {'record': closest_lane_record, 'poses': closest_lane_poses}
+        closest_lane_data, incoming_lane_data, outgoing_lane_data = self.get_closest_lane(ego_pos, nusc_map)
 
-        incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
-        incoming_lane_data = []
-        for incoming_lane_id in incoming_lane_ids:
-            record = nusc_map.get_lane(incoming_lane_id)
-            poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
-            incoming_lane_data.append({'record': record, 'poses': poses})
-
+        map_info['closest_lane'] = closest_lane_data
         map_info['incoming_lanes'] = incoming_lane_data
-
-        outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane_id)
-        outgoing_lane_data = []
-        for outgoing_lane_id in outgoing_lane_ids:
-            record = nusc_map.get_lane(outgoing_lane_id)
-            poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
-            outgoing_lane_data.append({'record': record, 'poses': poses})
-
         map_info['outgoing_lanes'] = outgoing_lane_data
 
         return map_info
@@ -389,3 +390,68 @@ class Sensor(NuScenesAgent):
         p = Point(pos[0], pos[1])
 
         return p.within(polygon)
+
+    def get_closest_lane(self, pos, nusc_map):
+        closest_lane_id = nusc_map.get_closest_lane(pos[0], pos[1], radius=2)
+        closest_lane_record = nusc_map.get_lane(closest_lane_id)
+
+        closest_lane_poses = np.array(arcline_path_utils.discretize_lane(closest_lane_record, resolution_meters=1))
+        closest_lane_data = {'record': closest_lane_record, 'poses': closest_lane_poses}
+
+        incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
+
+        if incoming_lane_ids is None:
+            incoming_lane_data = [{'record': None, 'poses':np.array([pos[:2]])}]
+        else:
+            incoming_lane_data = []
+            for incoming_lane_id in incoming_lane_ids:
+                record = nusc_map.get_lane(incoming_lane_id)
+                poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
+                incoming_lane_data.append({'record': record, 'poses': poses})
+
+        outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane_id)
+
+        if outgoing_lane_ids is None:
+            outgoing_lane_data = [{'record': None, 'poses':np.array([pos[:2]])}]
+        else:
+            outgoing_lane_data = []
+            for outgoing_lane_id in outgoing_lane_ids:
+                record = nusc_map.get_lane(outgoing_lane_id)
+                poses = np.array(arcline_path_utils.discretize_lane(record, resolution_meters=1))
+                outgoing_lane_data.append({'record': record, 'poses': poses})
+
+        return closest_lane_data, incoming_lane_data, outgoing_lane_data
+
+    def get_past_and_future_lanes(self, pos, quat, lane_data):
+        # TODO: filter conditions needs some work
+
+        if lane_data['closest_lane_data']['record'] is None or lane_data['incoming_lane_data'][0]['record'] is None or lane_data['outgoing_lane_data'][0]['record'] is None:
+            past_lane = np.array([pos[:2]])
+            future_lanes = [np.array([pos[:2]])]
+        else:
+            c_lane = lane_data['closest_lane_data']['poses']
+            p_lane = lane_data['incoming_lane_data'][0]['poses']
+            f_lanes = [l['poses'] for l in lane_data['outgoing_lane_data']]
+
+            c_lane_local = convert_global_coords_to_local(c_lane[:,:2], pos, quat)
+            p_lane_local = convert_global_coords_to_local(p_lane[:,:2], pos, quat)
+            f_lane_local = [convert_global_coords_to_local(l[:,:2], pos, quat) for l in f_lanes]
+
+            cp_lane = np.vstack([p_lane_local, c_lane_local])
+            cpf_lanes = [np.vstack([cp_lane, f]) for f in f_lane_local]
+
+            past_lane_idx = np.argmax(cp_lane[:,1] > 0)
+            if past_lane_idx == 0:
+                past_lane = np.array([pos[:2]])
+                future_lanes = [np.array([pos[:2]])]
+            else:
+                cp_lane_gb = convert_local_coords_to_global(cp_lane, pos, quat)
+                cpf_lanes_gb = [convert_local_coords_to_global(l, pos, quat) for l in cpf_lanes]
+
+                past_lane = cp_lane_gb[:past_lane_idx, :]
+                future_lanes = [l[past_lane_idx:,:] for l in cpf_lanes_gb]
+
+        past_lane = process_to_len(past_lane, 500, name='past_lane', dim=0, before_or_after='before', mode='edge')
+        future_lanes = [process_to_len(l, 500, name='future_lane', dim=0, before_or_after='after', mode='edge') for l in future_lanes]
+
+        return past_lane, future_lanes

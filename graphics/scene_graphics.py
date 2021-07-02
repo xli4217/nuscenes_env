@@ -176,6 +176,7 @@ class SceneGraphics(NuScenesAgent):
         }
         '''
 
+
         if sample_token is not None and scene_token is not None:
             raise ValueError("only one of sample_token or scene_token should be provided")
 
@@ -187,6 +188,7 @@ class SceneGraphics(NuScenesAgent):
             plot_list = self.plot_list
         if sensor_info is not None:
             plot_list += ['sensing_patch']
+            self.plot_list += ['sensing_patch']
 
         # this decides whether plotting in ego_centric or sim_ego_centric
         if ego_traj is not None:
@@ -518,6 +520,17 @@ class SceneGraphics(NuScenesAgent):
             for s in render_dict['scatters']:
                 ax.scatter(s['traj'][:,0], s['traj'][:,1], color=s['color'], s=30, zorder=700)
 
+
+        if 'text_boxes' in render_dict.keys():
+            # text_boxes = [
+            #     {
+            #         'text_string': <str>,
+            #         'pos': np.ndarray
+            #     }
+            # ]
+            for textbox in render_dict['text_boxes']:
+                self.plot_text_box(ax, textbox['text_string'], textbox['pos'])
+
     def in_my_patch(self, pos, my_patch):
         if pos[0] > my_patch[0] and pos[1] > my_patch[1] and pos[0] < my_patch[2] and pos[1] < my_patch[3]:
             return True
@@ -582,7 +595,7 @@ class SceneGraphics(NuScenesAgent):
 
     def plot_text_box(self, ax, text_string:str, pos: np.ndarray, facecolor: str='wheat'):
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props)
+        ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props, zorder=800)
 
 
     def plot_contour(self, ax, contour):
@@ -619,8 +632,8 @@ class SceneGraphics(NuScenesAgent):
                                               #edgecolor='green',
                                               #linestyle='--',
                                               linewidth=2)
-
-        ax.add_patch(polygon)
+        if 'sensing_patch' in self.plot_list:
+            ax.add_patch(polygon)
 
         
         #### plot ego ####
