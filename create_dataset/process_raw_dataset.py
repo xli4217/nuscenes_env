@@ -75,7 +75,7 @@ class ProcessRawDataset(object):
                     else:
                         for k, v in info_dict.items():
                             info_dict_aggre[k] += v
-                    obs, done = env.step()
+                    obs, done, _ = env.step()
 
             return info_dict_aggre
 
@@ -106,6 +106,7 @@ if __name__ == "__main__":
     import os
 
     RawData_NuScenesAgent_config = {
+        'version': 'v1.0-mini',
         'debug': False,
         'pred_horizon': 6,
         'obs_horizon': 2,
@@ -122,12 +123,14 @@ if __name__ == "__main__":
             'type': "external_libs.nuscenes_env.env.env.NuScenesEnv",
             'config': {
                 'NuScenesAgent_config':RawData_NuScenesAgent_config,
-                'Sensor_config':{},
+                'Sensor_config':{
+                    'road_agent_objects': True
+                },
                 'SceneGraphics_config':{},
                 'all_info_fields': ['center_lane', 'raster_image']
             }
         },
-        'num_workers': 2,
+        'num_workers': 5,
         'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw'),
         'get_raw_data_pd_dict_from_obs': "create_dataset.raw_dataset_utils.get_raw_data_pd_dict_from_obs"
     }

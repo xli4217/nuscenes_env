@@ -417,6 +417,12 @@ class Sensor(NuScenesAgent):
     def get_past_and_future_lanes(self, pos, quat, lane_data):
         # TODO: filter conditions needs some work
 
+        if len(lane_data['incoming_lane_data']) == 0:
+            lane_data['incoming_lane_data'].append({'record': None})
+        if len(lane_data['outgoing_lane_data']) == 0:
+            lane_data['outgoing_lane_data'].append({'record': None})
+
+
         if lane_data['closest_lane_data']['record'] is None or lane_data['incoming_lane_data'][0]['record'] is None or lane_data['outgoing_lane_data'][0]['record'] is None:
             past_lane = np.array([pos[:2]])
             future_lanes = [np.array([pos[:2]])]
