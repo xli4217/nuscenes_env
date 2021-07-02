@@ -78,9 +78,9 @@ class NuScenesAgent(object):
         self.all_info = {
             'config': self.na_config
         }
-        
+
         # self.update_all_info()
-        
+
     def update_all_info(self):
         raise NotImplementedError("")
 
