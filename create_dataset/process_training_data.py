@@ -96,6 +96,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
     ado_futures = []
     ado_past = []
     ado_road_objects = []
+    ado_interactions = []
     for idx, row in sample_df.iterrows():
         ego_pos = np.array(row['ego_future_pos'][0])[:2]
         ego_quat = np.array(row['ego_future_quat'][0])
@@ -110,7 +111,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
                     if record['token'] == row.instance_road_objects['road_segment'] and record['is_intersection']:
                         ado_road_objects[-1]['intersection'] = row.instance_road_objects['road_segment']
 
-
+            # get future
             if row['instance_future'].shape[0] < 6:
                 continue
             ado_future_global = row['instance_future'][:6]
@@ -134,6 +135,8 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
             pos.append(row['instance_pos'][:2])
             vel.append(row['instance_vel'])
             tokens.append([str(row['scene_token']), str(row['sample_token']), str(row['instance_token'])])
+            # get interactions
+            ado_interactions.append(row['interactions'])
 
 
     inst_pos = np.array(pos)
@@ -141,6 +144,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
     ado_futures = np.array(ado_futures)
     ado_past = np.array(ado_past)
     tokens = np.array(tokens)
+    ado_interactions = np.array(ado_interactions)
 
     if len(inst_pos) == 0:
         return None
@@ -153,8 +157,8 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
     closest_n_inst_pos = inst_pos[idx, :][:n, :]
     closest_n_inst_vel = inst_vel[idx][:, np.newaxis][:n, :]
     closest_n_tokens = tokens[idx, :][:n,:]
-
     closest_n_inst_pos_local = convert_global_coords_to_local(closest_n_inst_pos,ego_pos, ego_quat) 
+    closest_n_ado_interactions = ado_interactions[idx,:][:n,:]
 
     inst_obs = np.hstack([closest_n_inst_pos_local, closest_n_inst_vel])
 
@@ -168,7 +172,8 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
         'ado_past': closest_n_ado_past,
         'ado_vel': closest_n_inst_vel,
         'instance_tokens': closest_n_tokens,
-        'ado_road_objects': ado_road_objects
+        'ado_road_objects': ado_road_objects,
+        'ado_interactions': closest_n_ado_interactions
     }
 
     return out
@@ -184,7 +189,7 @@ class ProcessTrainingData(object):
             'pred_steps': 6,
             'freq':2,
             'num_closest_obs': 4,
-            'raw_data_path': None,
+            'filtered_data_path': None,
             'data_save_dir': None,
         }
 
@@ -193,7 +198,7 @@ class ProcessTrainingData(object):
         if self.config['raw_data_path'] is None:
             raise ValueError('raw data path not provided')
 
-        self.raw_data_df = pd.read_pickle(self.config['raw_data_path'])
+        self.raw_data_df = pd.read_pickle(self.config['filtered_data_path'])
 
         if helper is None:
             if self.config['version'] == 'v1.0-mini':
@@ -213,6 +218,7 @@ class ProcessTrainingData(object):
         #### get training input ####
         multi_scene_df = self.raw_data_df.set_index(['scene_name', 'sample_idx'])
         #### loop through scenes ####
+        # TODO: check groupby function
         for scene_name, scene_df in tqdm.tqdm(multi_scene_df.groupby(level=0)):
             print(f"processing scene {scene_name}")
             #### loop through each step in the scene ####
@@ -248,7 +254,7 @@ if __name__ == "__main__":
         'pred_steps': 6,
         'freq':2,
         'num_closest_obs': 4,
-        'raw_data_path': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'raw_dataset', 'raw_dataset.pkl'),
+        'filtered_data_path': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'raw_dataset', 'raw_dataset.pkl'),
         'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'processed_dataset', 'processed_dataset.pkl'),
     }
 

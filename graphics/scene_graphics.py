@@ -191,13 +191,12 @@ class SceneGraphics(NuScenesAgent):
             self.plot_list += ['sensing_patch']
 
         # this decides whether plotting in ego_centric or sim_ego_centric
+        sim_ego_pose = None
         if ego_traj is not None:
             if 'sim_ego' in ego_traj.keys():
                 sim_ego = ego_traj['sim_ego']
                 if sim_ego is not None:
                     sim_ego_pose = {'translation': sim_ego['pos']}
-                else:
-                    sim_ego_pose = None
 
 
         fig, ax, other = self.plot_agent_scene(ego_centric=ego_centric,
