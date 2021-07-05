@@ -81,7 +81,8 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
         'ego_vel': ego_vel,
         'ego_raster': sample_df.iloc[0].ego_raster_img,
         'discretized_lane': lane_poses_local,
-        'ego_road_objects': ego_road_objects
+        'ego_road_objects': ego_road_objects,
+        'ego_interactions': sample_df.iloc[0].ego_interactions
     }
     res.update(out)
 
@@ -138,13 +139,11 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
             # get interactions
             ado_interactions.append(row['interactions'])
 
-
     inst_pos = np.array(pos)
     inst_vel = np.array(vel)
     ado_futures = np.array(ado_futures)
     ado_past = np.array(ado_past)
     tokens = np.array(tokens)
-    ado_interactions = np.array(ado_interactions)
 
     if len(inst_pos) == 0:
         return None
@@ -158,7 +157,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
     closest_n_inst_vel = inst_vel[idx][:, np.newaxis][:n, :]
     closest_n_tokens = tokens[idx, :][:n,:]
     closest_n_inst_pos_local = convert_global_coords_to_local(closest_n_inst_pos,ego_pos, ego_quat) 
-    closest_n_ado_interactions = ado_interactions[idx,:][:n,:]
+    closest_n_ado_interactions = [ado_interactions[i] for i in idx][:n]
 
     inst_obs = np.hstack([closest_n_inst_pos_local, closest_n_inst_vel])
 
@@ -195,8 +194,8 @@ class ProcessTrainingData(object):
 
         self.config.update(config)
 
-        if self.config['raw_data_path'] is None:
-            raise ValueError('raw data path not provided')
+        if self.config['filtered_data_path'] is None:
+            raise ValueError('filtered data path not provided')
 
         self.raw_data_df = pd.read_pickle(self.config['filtered_data_path'])
 
@@ -254,7 +253,7 @@ if __name__ == "__main__":
         'pred_steps': 6,
         'freq':2,
         'num_closest_obs': 4,
-        'filtered_data_path': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'raw_dataset', 'raw_dataset.pkl'),
+        'filtered_data_path': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'filtered', 'dataset.pkl'),
         'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'processed_dataset', 'processed_dataset.pkl'),
     }
 

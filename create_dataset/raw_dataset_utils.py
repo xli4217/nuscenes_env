@@ -22,6 +22,8 @@ def get_raw_data_pd_dict_from_obs(observation):
         'sample_time': [observation['time']],
         'sample_idx': [observation['sample_idx']],
         'sample_token': [observation['sample_token']],
+        'ego_current_pos':[observation['ego_pos_gb']],
+        'ego_current_quat':[observation['ego_quat_gb']],
         'ego_past_pos': [observation['ego_past_pos']],
         'ego_future_pos': [observation['ego_future_pos']],
         'ego_past_quat': [observation['ego_past_quat']],
