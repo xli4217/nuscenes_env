@@ -184,7 +184,10 @@ class NuScenesEnv(NuScenesAgent):
             sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
             sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
-
+        else:
+            self.all_info['raster_image'] = None
+            self.all_info['sim_ego_raster_image'] = None
+            
     def reset_ego(self, scene_name=None, scene_idx=None, sample_idx=0):
         if scene_name is None and scene_idx is None:
             scene_list = np.arange(self.config['scenes_range'][0], self.config['scenes_range'][1])

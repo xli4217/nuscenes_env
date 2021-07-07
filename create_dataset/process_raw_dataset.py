@@ -34,7 +34,7 @@ class ProcessRawDataset(object):
                 'config': {}
             },
             'num_workers': 1,
-            'data_save_path': "",
+            'data_save_dir': "",
             'get_raw_data_pd_dict_from_obs': "",
         })
 
@@ -53,11 +53,11 @@ class ProcessRawDataset(object):
 
             self.env = ray.put(self.env)
 
-    def get_raw_data(self, data_save_path:str=None, scene_name=None):
-        data_save_path, = set_function_arguments(OrderedDict(data_save_path=data_save_path), self.config.config)
+    def get_raw_data(self, data_save_dir:str=None, scene_name=None):
+        data_save_dir, = set_function_arguments(OrderedDict(data_save_dir=data_save_dir), self.config.config)
 
         @ray.remote
-        def get_raw_data_worker(env, name_or_idx='idx', worker_list:list=[], data_save_path=""):
+        def get_raw_data_worker(env, name_or_idx='idx', worker_list:list=[], data_save_dir=""):
             info_dict_aggre = None
             for scene in tqdm.tqdm(worker_list, 'processing scene'):
                 if name_or_idx == 'idx':
@@ -73,6 +73,7 @@ class ProcessRawDataset(object):
                 else:
                     obs = env.reset(scene_name=scene)
                 done = False
+                scene_info_dict_aggre = None
                 while not done:
                     info_dict = get_raw_data_pd_dict_from_obs(obs)
                     if info_dict_aggre is None:
@@ -80,11 +81,18 @@ class ProcessRawDataset(object):
                     else:
                         for k, v in info_dict.items():
                             info_dict_aggre[k] += v
+
+                    if scene_info_dict_aggre is None:
+                        scene_info_dict_aggre = dict(info_dict)
+                    else:
+                        for k, v in info_dict.items():
+                            scene_info_dict_aggre[k] += v
+
                     obs, done, _ = env.step()
+                    
+                df = pd.DataFrame(scene_info_dict_aggre)
 
-                df = pd.DataFrame(info_dict)
-
-                p = os.path.join("/",*data_save_path.split("/")[:-1], scene_name+"_dataset.pkl")
+                p = os.path.join(data_save_dir, scene_name+".pkl")
                 print(p)
                 df.to_pickle(p)
             
@@ -96,7 +104,7 @@ class ProcessRawDataset(object):
         else:
             worker_lists = split_list_for_multi_worker(list(range(self.nb_scenes)), self.config['num_workers'])
 
-            obj_refs = [get_raw_data_worker.remote(self.env, 'idx', worker_list, data_save_path) for worker_list in worker_lists]
+            obj_refs = [get_raw_data_worker.remote(self.env, 'idx', worker_list, data_save_dir) for worker_list in worker_lists]
 
         ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
         aggregated_info_dict = None
@@ -112,7 +120,7 @@ class ProcessRawDataset(object):
         df = pd.DataFrame(aggregated_info_dict)
         print(f"Dataframe size: {df.shape}")
 
-        df.to_pickle(data_save_path)
+        df.to_pickle(data_save_dir+"/dataset.pkl")
             
 
 if __name__ == "__main__":
