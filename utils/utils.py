@@ -597,6 +597,16 @@ def transform_mesh2D(pos, rot_rad, X, Y):
     return Xr, Yr
 
 
+class RayWrapper(object):
+    def __init__(self, config={}):
+        self.config = {
+            'num_workers': 1,
+            'data_save_path':""
+        }
+        self.config.update(config)
+
+        
+
 if __name__ == "__main__":
     a = [1,2,3]
     split_list_for_multi_worker(a, 3)

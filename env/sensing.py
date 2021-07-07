@@ -19,6 +19,7 @@ from scipy.ndimage import rotate
 from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 import shapely
+import copy
 
 from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
@@ -53,12 +54,15 @@ class Sensor(NuScenesAgent):
 
     def get_road_objects(self, pos, nusc_map):
         road_objects = nusc_map.layers_on_point(pos[0], pos[1])
-        for k, v in road_objects:
-            if k == 'road_segment':
+        new_road_objects = copy.deepcopy(road_objects)
+        for k, v in road_objects.items():
+            if k == 'road_segment' and v != "":
                 r = nusc_map.get(k, v)
                 if r['is_intersection']:
-                    road_objects['is_intersection'] = True
-        return road_objects
+                    new_road_objects['is_intersection'] = True
+                else:
+                    new_road_objects['is_intersection'] = False
+        return new_road_objects
 
     def get_info(self, sample_token: str, ego_pos:np.ndarray=None, ego_quat:np.ndarray=None, instance_based=False):
 
@@ -82,7 +86,7 @@ class Sensor(NuScenesAgent):
 
         ego_on_road_objects = None
         if self.agent_road_objects:
-            ego_on_road_objects = self.get_road_objects(ego_pos[0], ego_pos[1])
+            ego_on_road_objects = self.get_road_objects(ego_pos, nusc_map)
 
         ego_info = {
             'translation': ego_pos,
@@ -254,7 +258,7 @@ class Sensor(NuScenesAgent):
 
                 agent_on_road_objects = None
                 if self.agent_road_objects:
-                    agent_on_road_objects = self.get_road_objects(agent_pos[0], agent_pos[1])
+                    agent_on_road_objects = self.get_road_objects(agent_pos, nusc_map)
 
 
                 ## agent nearest lane ##

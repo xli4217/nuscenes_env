@@ -9,8 +9,19 @@ from utils.utils import convert_global_coords_to_local, convert_local_coords_to_
 
 def get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame='global'):
 
-    lane_discretized_pos_global = np.array(arcline_path_utils.discretize_lane(lane_record, resolution_meters=1))[:,:2]
+    lane_discretized_pos_global = np.array(arcline_path_utils.discretize_lane(lane_record, resolution_meters=1))
 
+    #if lane_discretized_pos_global.ndim == 2:
+    lane_discretized_pos_global = lane_discretized_pos_global[:,:2]
+    # else:
+    #     # here !!!!!!!!!
+    #     if frame == 'global':
+    #         lane_discretized_poses = np.repeat()
+
+    #     elif frame == 'local':
+    #         lane_discretized_poses = lane_discretized_poses_local
+
+        
     lane_discretized_poses_local = convert_global_coords_to_local(lane_discretized_pos_global, np.array(ego_pos), np.array(ego_quat))
 
     # get part of current lane that's in front of the ego

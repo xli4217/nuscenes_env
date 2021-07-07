@@ -125,12 +125,10 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
 
-        if self.sample_idx < len(sensor_info['can_info']['ego_speed_traj'])-1:
-            ego_speed = sensor_info['can_info']['ego_speed_traj'][self.sample_idx]
-            ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][self.sample_idx][-1]
-        else:
-            ego_speed = sensor_info['can_info']['ego_speed_traj'][-1]
-            ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][-1][-1]
+        idx = min(self.sample_idx, len(sensor_info['can_info']['ego_speed_traj'])-1)
+        ego_speed = sensor_info['can_info']['ego_speed_traj'][idx]
+        idx = min(self.sample_idx, len(sensor_info['can_info']['ego_rotation_rate_traj'])-1)
+        ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][idx][-1]
 
         self.all_info['ego_speed'] = ego_speed
         self.all_info['ego_yaw_rate'] = ego_yaw_rate

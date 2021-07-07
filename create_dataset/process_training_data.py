@@ -137,7 +137,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
             vel.append(row['instance_vel'])
             tokens.append([str(row['scene_token']), str(row['sample_token']), str(row['instance_token'])])
             # get interactions
-            ado_interactions.append(row['interactions'])
+            ado_interactions.append(row['instance_interactions'])
 
     inst_pos = np.array(pos)
     inst_vel = np.array(vel)

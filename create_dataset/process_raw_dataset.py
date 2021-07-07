@@ -34,7 +34,7 @@ class ProcessRawDataset(object):
                 'config': {}
             },
             'num_workers': 1,
-            'data_save_dir': "",
+            'data_save_path': "",
             'get_raw_data_pd_dict_from_obs': "",
         })
 
@@ -53,16 +53,21 @@ class ProcessRawDataset(object):
 
             self.env = ray.put(self.env)
 
-    def get_raw_data(self, data_save_dir:str=None, scene_name=None):
-        data_save_dir, = set_function_arguments(OrderedDict(data_save_dir=data_save_dir), self.config.config)
+    def get_raw_data(self, data_save_path:str=None, scene_name=None):
+        data_save_path, = set_function_arguments(OrderedDict(data_save_path=data_save_path), self.config.config)
 
         @ray.remote
-        def get_raw_data_worker(env, name_or_idx='idx', worker_list:list=[]):
+        def get_raw_data_worker(env, name_or_idx='idx', worker_list:list=[], data_save_path=""):
             info_dict_aggre = None
             for scene in tqdm.tqdm(worker_list, 'processing scene'):
-                print(f"scene:{scene}")
-                if scene in NO_CANBUS_SCENES:
+                if name_or_idx == 'idx':
+                    scene_name = env.nusc.scene[scene]['name']
+                else:
+                    scene_name = scene
+                    
+                if scene_name in NO_CANBUS_SCENES:
                     continue
+
                 if name_or_idx == 'idx':
                     obs = env.reset(scene_idx=scene)
                 else:
@@ -77,14 +82,21 @@ class ProcessRawDataset(object):
                             info_dict_aggre[k] += v
                     obs, done, _ = env.step()
 
+                df = pd.DataFrame(info_dict)
+
+                p = os.path.join("/",*data_save_path.split("/")[:-1], scene_name+"_dataset.pkl")
+                print(p)
+                df.to_pickle(p)
+            
             return info_dict_aggre
 
         if scene_name is not None:
             worker_lists = [[scene_name]]
-            obj_refs = [get_raw_data_worker.remote(self.env, 'name', worker_list) for worker_list in worker_lists]
+            obj_refs = [get_raw_data_worker.remote(self.env, 'name', worker_list, data_save_path) for worker_list in worker_lists]
         else:
             worker_lists = split_list_for_multi_worker(list(range(self.nb_scenes)), self.config['num_workers'])
-            obj_refs = [get_raw_data_worker.remote(self.env, 'idx', worker_list) for worker_list in worker_lists]
+
+            obj_refs = [get_raw_data_worker.remote(self.env, 'idx', worker_list, data_save_path) for worker_list in worker_lists]
 
         ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
         aggregated_info_dict = None
@@ -99,8 +111,9 @@ class ProcessRawDataset(object):
 
         df = pd.DataFrame(aggregated_info_dict)
         print(f"Dataframe size: {df.shape}")
-        df.to_pickle(data_save_dir+"/raw_dataset.pkl")
 
+        df.to_pickle(data_save_path)
+            
 
 if __name__ == "__main__":
     import os
@@ -124,7 +137,7 @@ if __name__ == "__main__":
             'config': {
                 'NuScenesAgent_config':RawData_NuScenesAgent_config,
                 'Sensor_config':{
-                    'road_agent_objects': True
+                    'agent_road_objects': True
                 },
                 'SceneGraphics_config':{},
                 'all_info_fields': ['center_lane', 'raster_image']
