@@ -370,7 +370,7 @@ class NuScenesEnv(NuScenesAgent):
                 costmap_contour = render_info['costmap_contour']
 
             other_images_to_be_saved = None
-            if 'sim_ego_raster_image' in self.all_info.keys():
+            if self.all_info['sim_ego_raster_image'] is not None:
                 other_images_to_be_saved = {
                     'raster': np.transpose(self.all_info['sim_ego_raster_image'], (1,2,0))
                 }
