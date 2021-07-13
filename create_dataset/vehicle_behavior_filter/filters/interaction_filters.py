@@ -89,7 +89,6 @@ def is_yielding(agent_trajectories: OrderedDict, map_elements: OrderedDict):
             dist = sl1.boundary[0].distance(sl2.boundary[0])
 
             if dist > 3:
-                print('yield')
                 return True
 
     return False

@@ -56,7 +56,10 @@ def process_to_len(a, desired_length, name="", dim=0, before_or_after='after', m
             raise ValueError(f'mode {mode} not supported')
     else:
         if dim == 0:
-            a = a[:desired_length, :]
+            if a.ndim > 1:
+                a = a[:desired_length, :]
+            else:
+                a = a[:desired_length]
         elif dim == 1:
             a = a[:, :desired_length]
         else:

@@ -23,7 +23,7 @@ from nuscenes_env.nuscenes.map_expansion import arcline_path_utils
 import random
 
 
-def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, pred_steps, obs_steps, nusc, helper):
+def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, pred_steps, obs_steps, nusc, helper, more_history_data_traj):
 
     sample_idx = int(sample_idx)
     sample = nusc.get('sample', sample_df.iloc[0].sample_token)
@@ -35,9 +35,19 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     ego_pos_global = np.array(sample_df.iloc[0]['ego_future_pos'][0])[:2]
     ego_quat_global = np.array(sample_df.iloc[0]['ego_future_quat'][0])
 
+    # ego_vel
     idx = min(len(sample_df.iloc[0]['ego_speed_traj'])-1, int(sample_idx))
-    ego_vel = sample_df.iloc[0]['ego_speed_traj'][idx:]
+    ego_current_vel = sample_df.iloc[0]['ego_speed_traj'][idx]
+    ego_future_vel = np.array(sample_df.iloc[0]['ego_speed_traj'][idx:])
+    ego_past_vel = np.array(sample_df.iloc[0]['ego_speed_traj'][:idx])
     
+    # ego_steering
+    idx = min(len(sample_df.iloc[0]['ego_rotation_rate_traj'])-1, int(sample_idx))
+    ego_current_steering = sample_df.iloc[0]['ego_rotation_rate_traj'][idx][-1]
+    ego_future_steering = np.array([s[-1] for s in sample_df.iloc[0]['ego_rotation_rate_traj'][idx:]])
+    ego_past_steering = np.array([s[-1] for s in sample_df.iloc[0]['ego_rotation_rate_traj'][:idx]])
+
+    # ego pos and quat
     ego_vec = np.concatenate([ego_pos_global, ego_quat_global])
 
     # future lane information
@@ -54,11 +64,11 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     if out is None:
         return None
 
-    if out['instance_tokens'].shape[0] <  num_closest_obs:
-        instance_tokens = np.vstack([out['instance_tokens'], -1*np.ones((num_closest_obs - out['instance_tokens'].shape[0], 3))])
-        out['instance_tokens'] = instance_tokens
+    if out['ado_token'].shape[0] <  num_closest_obs:
+        instance_tokens = np.vstack([out['ado_token'], -1*np.ones((num_closest_obs - out['ado_token'].shape[0], 3))])
+        out['ado_token'] = instance_tokens
 
-    if np.isnan(out['ado_obs']).any():
+    if np.isnan(out['ado_current']).any():
         return None
 
     ## get ego future as target
@@ -82,13 +92,24 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
         'sample_time': sample_df.iloc[0].sample_time,
         'ego_future': ego_future_local,
         'ego_past': ego_past_local,
-        'ego_observations': ego_vec,
-        'ego_vel': ego_vel,
-        'ego_raster': sample_df.iloc[0].ego_raster_img,
+        'ego_current': ego_vec,
+        'ego_current_vel': ego_current_vel,
+        'ego_future_vel': ego_future_vel,
+        'ego_past_vel': ego_past_vel,
+        'ego_current_steering': ego_current_steering,
+        'ego_future_steering': ego_future_steering,
+        'ego_past_steering': ego_past_steering,
+        'ego_current_raster_img': sample_df.iloc[0].ego_raster_img,
         'discretized_lane': lane_poses_local,
         'ego_road_objects': ego_road_objects,
         'ego_interactions': sample_df.iloc[0].ego_interactions
     }
+
+    for k, v in more_history_data_traj.items():
+        idx = min(len(v)-2, int(sample_idx))
+        res['current_'+k] = v[idx]
+        res['future_'+k] = np.array(v[idx+1:])
+        res['past_'+k] = np.array(v[:idx])
     res.update(out)
 
     return res
@@ -171,11 +192,11 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
         # closest_n_tokens = np.vstack([closest_n_tokens, np.zeros((n-len(idx), 3))])
 
     out = {
-        'ado_obs': inst_obs,
-        'ado_futures': closest_n_ado_futures,
+        'ado_current': inst_obs,
+        'ado_future': closest_n_ado_futures,
         'ado_past': closest_n_ado_past,
         'ado_vel': closest_n_inst_vel,
-        'instance_tokens': closest_n_tokens,
+        'ado_token': closest_n_tokens,
         'ado_road_objects': ado_road_objects,
         'ado_interactions': closest_n_ado_interactions
     }
@@ -202,11 +223,22 @@ def process_once(df_path_list=[], num_closest_obs=None, config={}, nusc=None, he
         #### loop through each step in the scene ####
         nbr_samples_in_scene = scene_df.iloc[0].scene_nbr_samples
         scene_df_dict = {}
+
+        # gather additional history data (currently ego only)
+        more_history_data_traj = {}
+        for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
+            if config['obs_steps'] < sample_idx < nbr_samples_in_scene - config['pred_steps'] - 1:
+                for k in config['additional_history_data']:
+                    if k not in list(more_history_data_traj.keys()):
+                        more_history_data_traj[k] = [sample_df.iloc[0][k]]
+                    else:
+                        more_history_data_traj[k].append(sample_df.iloc[0][k])
+                        
         for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
             if config['obs_steps'] < sample_idx < nbr_samples_in_scene - config['pred_steps'] - 1:
                     # sample_idx data is current data, sample_idx+1:sample_idx+pred_steps+1 is future data
                 
-                out = get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, config['pred_steps'], config['obs_steps'], nusc, helper) 
+                out = get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, config['pred_steps'], config['obs_steps'], nusc, helper, more_history_data_traj) 
                 if out is None:
                     continue
                     
@@ -238,7 +270,8 @@ class ProcessTrainingData(object):
             'num_closest_obs': 4,
             'filtered_data_dir': None,
             'data_save_dir': None,
-            'num_workers': 1
+            'num_workers': 1,
+            'additional_history_data': []
         }
 
         self.config.update(config)

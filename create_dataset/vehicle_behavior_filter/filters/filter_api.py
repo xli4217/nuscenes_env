@@ -148,7 +148,6 @@ class FilterApi(object):
             'num_workers': 1
         }
         self.config.update(config)
-        print("here!!!!!!!!!!!!!")
         
         self.raw_data_fn = [str(p) for p in Path(self.config['raw_data_dir']).rglob('*.pkl')]
         
