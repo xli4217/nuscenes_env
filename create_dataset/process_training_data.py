@@ -46,7 +46,7 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     ego_current_steering = sample_df.iloc[0]['ego_rotation_rate_traj'][idx][-1]
     ego_future_steering = np.array([s[-1] for s in sample_df.iloc[0]['ego_rotation_rate_traj'][idx:]])
     ego_past_steering = np.array([s[-1] for s in sample_df.iloc[0]['ego_rotation_rate_traj'][:idx]])
-
+    
     # ego pos and quat
     ego_vec = np.concatenate([ego_pos_global, ego_quat_global])
 

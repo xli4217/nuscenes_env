@@ -65,7 +65,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
 
     multi_scene_df = filtered_scene_df.set_index(['scene_name'])
     #### loop through scenes ####
-    for scene_name, scene_df in tqdm.tqdm(multi_scene_df.groupby(level=0)):
+    for scene_name, scene_df in tqdm.tqdm(multi_scene_df.groupby(level=0), f"scene {scene_name}"):
         scene_ado_interactions = []
         scene_ado_maneuvers = []
         scene_ego_interactions = []
@@ -76,7 +76,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
             ado_interaction_list = []
             ado_maneuver_list = []
             ego_interaction_list = []
-            ego_maneuvers_list = []
+            ego_maneuver_list = []
 
             for idx2, row2 in scene_df.iterrows():
                 #### ado ####
@@ -87,8 +87,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                         if interaction_filter(agent_trajectories, map_elements):
                             ado_interaction_list.append((interaction_name, row2.instance_token))
                                 
-                    ## add maneuvers ##
-
+                    
                 #### ego ####
                 if row1.sample_time == row2.sample_time:
                     ## add ego interactions ##
@@ -97,8 +96,8 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                         if interaction_filter(agent_trajectories, map_elements):
                             ego_interaction_list.append((interaction_name, row2.instance_token))
 
-                    ## add ego maneuvers ##
 
+                    
             for road_object_name, road_object_filter in config['scenario_filters'].items():
                 #### add ado road objects ####
                 if road_object_filter(row1.instance_road_objects):
@@ -107,16 +106,29 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                 if road_object_filter(row1.ego_road_objects):
                     ego_interaction_list.append(('occupies', road_object_name))
 
-                        
+            for maneuver_name, maneuver_filter in config['maneuver_filters'].items():
+                ## add ado maneuvers ##
+                ado_traj, ado_map = construct_filter_input(row1, ado=True)
+                if maneuver_filter(ado_traj):
+                    ado_maneuver_list.append(maneuver_name)
+                
+                ## add ego maneuvers ##
+                ego_traj, ego_map = construct_filter_input(row1, ado=False)
+                if maneuver_filter(ego_traj):
+                    ego_maneuver_list.append(maneuver_name)
+
+
+
+                    
             ado_interactions.append(ado_interaction_list)
             ado_maneuvers.append(ado_maneuver_list)
             ego_interactions.append(ego_interaction_list)
-            ego_maneuvers.append(ego_maneuvers_list)
+            ego_maneuvers.append(ego_maneuver_list)
 
             scene_ado_interactions.append(ado_interaction_list)
             scene_ado_maneuvers.append(ado_maneuver_list)
             scene_ego_interactions.append(ego_interaction_list)
-            scene_ego_maneuvers.append(ego_maneuvers_list)
+            scene_ego_maneuvers.append(ego_maneuver_list)
 
         scene_df['instance_interactions'] = scene_ado_interactions
         scene_df['instance_maneuvers'] = scene_ado_maneuvers
@@ -127,13 +139,13 @@ def run_once(df_path_list=[], save_dir=None, config={}):
         if save_dir is not None:
             scene_df.to_pickle(os.path.join(save_dir, scene_name+".pkl"))
             
-    filtered_scene_df['instance_interactions'] = ado_interactions
-    filtered_scene_df['instance_maneuvers'] = ado_maneuvers
-    filtered_scene_df['ego_interactions'] = ego_interactions
-    filtered_scene_df['ego_maneuvers'] = ego_maneuvers
+    # filtered_scene_df['instance_interactions'] = ado_interactions
+    # filtered_scene_df['instance_maneuvers'] = ado_maneuvers
+    # filtered_scene_df['ego_interactions'] = ego_interactions
+    # filtered_scene_df['ego_maneuvers'] = ego_maneuvers
 
 
-    return filtered_scene_df
+    # return filtered_scene_df
 
 
 class FilterApi(object):

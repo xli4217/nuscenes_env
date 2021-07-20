@@ -11,11 +11,18 @@ from configs.configs import na_config
 
 def construct_filter_input(df_row, ado=False):
     if not ado:
+        pos_idx = min(int(df_row.sample_idx), len(df_row.ego_pos_traj)-1)
+        vel_idx = min(int(df_row.sample_idx), len(df_row.ego_speed_traj))-1
+        steering_idx = min(int(df_row.sample_idx), len(df_row.ego_rotation_rate_traj))-1
         agent_traj = {
             'past': np.array(df_row.ego_past_pos),
-            'current': np.array(df_row.ego_pos_traj[min(int(df_row.sample_idx), len(df_row.ego_pos_traj)-1)]),
+            'current': np.array(df_row.ego_pos_traj[pos_idx]),
             'future': np.array(df_row.ego_future_pos),
-            'vel': df_row.ego_speed_traj[min(int(df_row.sample_idx), len(df_row.ego_speed_traj))-1]
+            'vel': df_row.ego_speed_traj[vel_idx],
+            'current_steering': df_row.ego_rotation_rate_traj[steering_idx][-1],
+            'future_steering': np.array([df_row.ego_rotation_rate_traj[j][-1] for j in range(steering_idx, len(df_row.ego_rotation_rate_traj))]),
+            'past_steering': np.array([df_row.ego_rotation_rate_traj[j][-1] for j in range(0, steering_idx)])
+            
         }
 
         agent_map = {}
@@ -25,11 +32,14 @@ def construct_filter_input(df_row, ado=False):
             'past': np.array(df_row.instance_past),
             'current': np.array(df_row.instance_pos),
             'future': np.array(df_row.instance_future),
-            'vel': df_row.instance_vel
+            'vel': df_row.instance_vel,
+            'current_steering': 0,
+            'future_steering': np.array([0]),
+            'past_steering':np.array([0])
         }
         agent_map = {}
 
-
+    
     return agent_traj, agent_map
         
 def plot_text_box(ax, text_string:str, pos: np.ndarray, facecolor: str='wheat'):
