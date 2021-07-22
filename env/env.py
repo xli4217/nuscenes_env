@@ -53,7 +53,8 @@ class NuScenesEnv(NuScenesAgent):
         self.config.update(config)
 
         super().__init__(config=self.config['NuScenesAgent_config'], helper=helper, py_logger=py_logger, tb_logger=tb_logger)
-
+        
+        
         #### Instantiate Sensor ####
         sensor_config = copy.deepcopy(self.config['Sensor_config'])
         sensor_config['NuScenesAgent_config'] = self.config['NuScenesAgent_config']
@@ -165,7 +166,7 @@ class NuScenesEnv(NuScenesAgent):
 
         #### future lanes ####
         self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
-
+        
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
         #### rasterized image ####
@@ -435,7 +436,7 @@ class NuScenesEnv(NuScenesAgent):
         if self.config['control_mode'] == 'position' and action is not None:
             self.sim_ego_pos_gb = action
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
-
+        
         if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
             self.sim_ego_speed = action[0]
