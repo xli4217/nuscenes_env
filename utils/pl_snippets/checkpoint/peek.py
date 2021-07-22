@@ -47,7 +47,7 @@ def get_attribute(obj: object, name: str) -> object:
     if isinstance(obj, Namespace):
         return obj.name
     return getattr(object, name)
-
+    
 
 def peek(filepath=None, args: Namespace=None, interactive=False):
     if args is not None:

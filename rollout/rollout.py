@@ -16,7 +16,7 @@ def rollout(scene_name=None,
             debug=False, 
             logger=None, 
             demo_goal_termination=True):
-    
+        
     env.py_logger = logger
     if scene_name is not None:
         obs = env.reset(scene_name=scene_name, sample_idx=sample_idx)
