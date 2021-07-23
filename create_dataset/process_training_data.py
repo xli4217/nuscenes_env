@@ -60,7 +60,7 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
             lane_poses_local.append(lane_local)
 
     # get instance obs info
-    out = get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=num_closest_obs, nusc_map=nusc_map)
+    out = get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=num_closest_obs, nusc_map=nusc_map, obs_steps=obs_steps, pred_steps=pred_steps)
     if out is None:
         return None
 
@@ -73,8 +73,8 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
 
     ## get ego future as target
     idx = min(len(sample_df.iloc[0]['ego_pos_traj'])-1, int(sample_idx))
-    ego_future_global = np.array(sample_df.iloc[0]['ego_pos_traj'])[idx+1:idx+pred_steps+1, :2]
-    ego_past_global = np.array(sample_df.iloc[0]['ego_pos_traj'])[idx-obs_steps:idx, :2]
+    ego_future_global = np.array(sample_df.iloc[0]['ego_pos_traj'])[idx+1:, :2]
+    ego_past_global = np.array(sample_df.iloc[0]['ego_pos_traj'])[:idx, :2]
     ego_future_local = convert_global_coords_to_local(ego_future_global, ego_pos_global, ego_quat_global)
     ego_past_local = convert_global_coords_to_local(ego_past_global, ego_pos_global, ego_quat_global)
 
@@ -115,7 +115,7 @@ def get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, 
     return res
 
 
-def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
+def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None, obs_steps=4, pred_steps=6):
     # get instance information
     pos = []
     vel = []
@@ -139,9 +139,9 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
                         ado_road_objects[-1]['intersection'] = row.instance_road_objects['road_segment']
 
             # get future
-            if row['instance_future'].shape[0] < 6:
+            if row['instance_future'].shape[0] < pred_steps:
                 continue
-            ado_future_global = row['instance_future'][:6]
+            ado_future_global = row['instance_future'][:pred_steps]
 
             ado_future_local = convert_global_coords_to_local(ado_future_global, ego_pos, ego_quat)
 
@@ -150,7 +150,7 @@ def get_closest_n_moving_vehicles_or_pedestrians(sample_df, n=5, nusc_map=None):
             # get past
             ado_past_global = row['instance_past']
 
-            if ado_past_global.shape[0] != 4:
+            if ado_past_global.shape[0] != obs_steps:
                 continue
             ado_past_local = convert_global_coords_to_local(ado_past_global, ego_pos, ego_quat)
             ado_past.append(ado_past_local)
@@ -227,32 +227,24 @@ def process_once(df_path_list=[], num_closest_obs=None, config={}, nusc=None, he
         # gather additional history data (currently ego only)
         more_history_data_traj = {}
         for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
-            if config['obs_steps'] < sample_idx < nbr_samples_in_scene - config['pred_steps'] - 1:
-                for k in config['additional_history_data']:
-                    if k not in list(more_history_data_traj.keys()):
-                        more_history_data_traj[k] = [sample_df.iloc[0][k]]
-                    else:
-                        more_history_data_traj[k].append(sample_df.iloc[0][k])
+            for k in config['additional_history_data']:
+                if k not in list(more_history_data_traj.keys()):
+                    more_history_data_traj[k] = [sample_df.iloc[0][k]]
+                else:
+                    more_history_data_traj[k].append(sample_df.iloc[0][k])
                         
         for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
-            if config['obs_steps'] < sample_idx < nbr_samples_in_scene - config['pred_steps'] - 1:
-                    # sample_idx data is current data, sample_idx+1:sample_idx+pred_steps+1 is future data
-                
-                out = get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, config['pred_steps'], config['obs_steps'], nusc, helper, more_history_data_traj) 
-                if out is None:
-                    continue
-                    
-                if len(list(scene_df_dict.keys())) == 0:
-                    for k, v in out.items():
-                        scene_df_dict[k] = [v]
-                else:
-                    for k, v in out.items():
-                        scene_df_dict[k].append(v)
-
-                    
-            else:
+            out = get_data_from_sample_df(scene_name, sample_df, sample_idx, num_closest_obs, config['pred_steps'], config['obs_steps'], nusc, helper, more_history_data_traj) 
+            if out is None:
                 continue
-
+                    
+            if len(list(scene_df_dict.keys())) == 0:
+                for k, v in out.items():
+                    scene_df_dict[k] = [v]
+            else:
+                for k, v in out.items():
+                    scene_df_dict[k].append(v)
+                    
         scene_df = pd.DataFrame(scene_df_dict)
         scene_df.to_pickle(config['data_save_dir']+"/" + scene_name +".pkl")
         
