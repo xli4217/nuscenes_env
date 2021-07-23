@@ -167,8 +167,8 @@ class FilterApi(object):
         if os.environ['COMPUTE_LOCATION'] == 'local':
             ray.init()
         else:
-            ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
-
+            #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
+            ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
         
     def run(self):
         worker_lists = split_list_for_multi_worker(self.raw_data_fn, self.config['num_workers'])
