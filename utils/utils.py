@@ -57,9 +57,9 @@ def process_to_len(a, desired_length, name="", dim=0, before_or_after='after', m
     else:
         if dim == 0:
             if before_or_after == 'after':
-                a = a[:desired_length, :]
+                a = a[:desired_length]
             elif before_or_after == 'before':
-                a = a[-desired_length:, :]
+                a = a[-desired_length:]
         elif dim == 1:
             if before_or_after == 'after':
                 a = a[:, :desired_length]
