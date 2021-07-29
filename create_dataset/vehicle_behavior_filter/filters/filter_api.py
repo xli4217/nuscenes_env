@@ -33,7 +33,6 @@ def construct_filter_inputs(df_row1=None, agent1_is_ado=True, df_row2=None, agen
 
     return agent_trajectories, map_elements
 
-@ray.remote
 def run_once(df_path_list=[], save_dir=None, config={}):
     """Creates a pandas dataframe
 
@@ -52,7 +51,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
     for scene_name, scene_df in multi_scene_df.groupby(level=0):
         #### loop through each step in the scene ####
         for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
-            for n, sf in config['scenario_filters'].items():
+            for n, sf in config['other_configs']['scenario_filters'].items():
                 if sf(sample_df.iloc[0].ego_road_objects):
                     filtered_scene_list.append(scene_name)                    
     filtered_scene_df = df.loc[df['scene_name'].isin(filtered_scene_list)]
@@ -83,7 +82,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                 if row1.instance_token != row2.instance_token and row1.sample_time == row2.sample_time:
                     agent_trajectories, map_elements = construct_filter_inputs(row1, True, row2, True)
                     ## add interactions ##
-                    for interaction_name, interaction_filter in config['interaction_filters'].items():
+                    for interaction_name, interaction_filter in config['other_configs']['interaction_filters'].items():
                         if interaction_filter(agent_trajectories, map_elements):
                             ado_interaction_list.append((interaction_name, row2.instance_token))
                                 
@@ -92,13 +91,13 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                 if row1.sample_time == row2.sample_time:
                     ## add ego interactions ##
                     agent_trajectories, map_elements = construct_filter_inputs(row1, False, row2, True)
-                    for interaction_name, interaction_filter in config['interaction_filters'].items():
+                    for interaction_name, interaction_filter in config['other_configs']['interaction_filters'].items():
                         if interaction_filter(agent_trajectories, map_elements):
                             ego_interaction_list.append((interaction_name, row2.instance_token))
 
 
                     
-            for road_object_name, road_object_filter in config['scenario_filters'].items():
+            for road_object_name, road_object_filter in config['other_configs']['scenario_filters'].items():
                 #### add ado road objects ####
                 if road_object_filter(row1.instance_road_objects):
                     ado_interaction_list.append(('occupies', road_object_name))
@@ -106,7 +105,7 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                 if road_object_filter(row1.ego_road_objects):
                     ego_interaction_list.append(('occupies', road_object_name))
 
-            for maneuver_name, maneuver_filter in config['maneuver_filters'].items():
+            for maneuver_name, maneuver_filter in config['other_configs']['maneuver_filters'].items():
                 ## add ado maneuvers ##
                 ado_traj, ado_map = construct_filter_input(row1, ado=True)
                 if maneuver_filter(ado_traj):
@@ -116,9 +115,6 @@ def run_once(df_path_list=[], save_dir=None, config={}):
                 ego_traj, ego_map = construct_filter_input(row1, ado=False)
                 if maneuver_filter(ego_traj):
                     ego_maneuver_list.append(maneuver_name)
-
-
-
                     
             ado_interactions.append(ado_interaction_list)
             ado_maneuvers.append(ado_maneuver_list)
@@ -139,55 +135,41 @@ def run_once(df_path_list=[], save_dir=None, config={}):
         if save_dir is not None:
             scene_df.to_pickle(os.path.join(save_dir, scene_name+".pkl"))
             
-    # filtered_scene_df['instance_interactions'] = ado_interactions
-    # filtered_scene_df['instance_maneuvers'] = ado_maneuvers
-    # filtered_scene_df['ego_interactions'] = ego_interactions
-    # filtered_scene_df['ego_maneuvers'] = ego_maneuvers
 
+# class FilterApi(object):
 
-    # return filtered_scene_df
-
-
-class FilterApi(object):
-
-    def __init__(self, config={}):
-        self.config = {
-            'raw_data_dir': "",
-            'filtered_data_save_dir': "",
-            'scenario_filters': {},
-            'interaction_filters': {},
-            'maneuvers_filters': {},
-            'num_workers': 1
-        }
-        self.config.update(config)
+#     def __init__(self, config={}):
+#         self.config = {
+#             'raw_data_dir': "",
+#             'filtered_data_save_dir': "",
+#             'scenario_filters': {},
+#             'interaction_filters': {},
+#             'maneuvers_filters': {},
+#             'num_workers': 1
+#         }
+#         self.config.update(config)
         
-        self.raw_data_fn = [str(p) for p in Path(self.config['raw_data_dir']).rglob('*.pkl')]
-        
-        ray.shutdown()
-        if os.environ['COMPUTE_LOCATION'] == 'local':
-            ray.init()
-        else:
-            #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
-            ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
-        
-    def run(self):
-        worker_lists = split_list_for_multi_worker(self.raw_data_fn, self.config['num_workers'])
-        
-        obj_refs = [run_once.remote(worker_list, self.config['filtered_data_save_dir'], self.config) for worker_list in worker_lists]
+#         self.raw_data_fn = [str(p) for p in Path(self.config['raw_data_dir']).rglob('*.pkl')]
 
-        ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
+#         if self.config['num_workers'] > 1:
+#             ray.shutdown()
+#             if os.environ['COMPUTE_LOCATION'] == 'local':
+#                 ray.init()
+#             else:
+#                 #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
+#                 ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
+#             self.run_once_remote = ray.remote(run_once)
+                
+#     def run(self):
+#         if self.config['num_workers'] > 1:
+#             worker_lists = split_list_for_multi_worker(self.raw_data_fn, self.config['num_workers'])
+        
+#             obj_refs = [self.run_once_remote.remote(worker_list, self.config['filtered_data_save_dir'], self.config) for worker_list in worker_lists]
 
+#             ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
+#         else:
+#             run_once(self.raw_data_fn, self.config['filtered_data_save_dir'], self.config)
+            
         
 if __name__ == "__main__":
-    from filters.scenario_filters import is_in_intersection
-    from filters.interaction_filters import is_follow
-
-    config = {
-        'raw_data_path': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw', 'raw_dataset.pkl'),
-        'filtered_data_save_path': os.path.join(os.environ['PKG_PATH'],'dataset', 'filtered', 'dataset.pkl'),
-        'scenario_filters': {'in_intersection': is_in_intersection},
-        'interaction_filters': {'follows': is_follow}
-    }
-
-    filter = FilterApi(config)
-    filter.run()
+    pass

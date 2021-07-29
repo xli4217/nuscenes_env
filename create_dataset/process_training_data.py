@@ -178,19 +178,16 @@ def get_neighbor_vehicles_or_pedestrians(sample_df, nusc_map=None):
 
             ado_dict[str(row['instance_token'])] = current_ado_dict
             
-
     return ado_dict
 
-@ray.remote
-def process_once(df_path_list=[], num_closest_obs=None, config={}, nusc=None, helper=None):
+def process_once(df_path_list=[], data_save_dir=None, config={}):
+    nusc = config['other_configs']['nusc']
+    helper = config['other_configs']['helper']
+
     df_list = []
     for p in df_path_list:
         df_list.append(pd.read_pickle(p))
     df = pd.concat(df_list)
-
-    if num_closest_obs is None:
-        num_closest_obs = config['num_closest_obs']
-    #### Trainig Input Initialize ####
 
     #### get training input ####
     multi_scene_df = df.set_index(['scene_name', 'sample_idx'])
@@ -206,7 +203,7 @@ def process_once(df_path_list=[], num_closest_obs=None, config={}, nusc=None, he
         more_history_data_traj = {}
         for sample_idx, sample_df in scene_df.groupby(level='sample_idx'):
             if 0 < sample_idx < len(sample_df.iloc[0].ego_speed_traj):
-                for k in config['additional_history_data']:
+                for k in config['other_configs']['additional_history_data']:
                     if k not in list(more_history_data_traj.keys()):
                         more_history_data_traj[k] = [sample_df.iloc[0][k]]
                     else:
@@ -226,75 +223,11 @@ def process_once(df_path_list=[], num_closest_obs=None, config={}, nusc=None, he
                         scene_df_dict[k].append(v)
                     
         scene_df = pd.DataFrame(scene_df_dict)
-        scene_df.to_pickle(config['data_save_dir']+"/" + scene_name +".pkl")
+        if data_save_dir is not None:
+            scene_df.to_pickle(data_save_dir+"/" + scene_name +".pkl")
         
     return df
 
-class ProcessTrainingData(object):
-
-    def __init__(self, config={}, helper=None):
-        #### common setup ####
-        self.config = {
-            'version': 'v1.0-mini',
-            'obs_steps':4,
-            'pred_steps': 6,
-            'freq':2,
-            'num_closest_obs': 4,
-            'filtered_data_dir': None,
-            'data_save_dir': None,
-            'num_workers': 1,
-            'additional_history_data': []
-        }
-
-        self.config.update(config)
-
-        if self.config['filtered_data_dir'] is None:
-            raise ValueError('filtered data dir not provided')
-
-        if helper is None:
-            if self.config['version'] == 'v1.0-mini':
-                self.nusc = NuScenes(dataroot=mini_path, version='v1.0-mini')
-            if self.config['version'] == 'v1.0':
-                self.nusc = NuScenes(dataroot=full_path, version='v1.0')
-            self.helper = PredictHelper(self.nusc)
-        else:
-            self.helper = helper
-            self.nusc = helper.data
-
-        self.filtered_data_fn = [str(p) for p in Path(self.config['filtered_data_dir']).rglob('*.pkl')]
-        
-        ray.shutdown()
-        if os.environ['COMPUTE_LOCATION'] == 'local':
-            ray.init()
-        else:
-            ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
-
-        self.helper = ray.put(self.helper)
-        self.nusc = ray.put(self.nusc)
-            
-    def process(self, num_closest_obs=None):
-        worker_lists = split_list_for_multi_worker(self.filtered_data_fn, self.config['num_workers'])
-        
-        obj_refs = [process_once.remote(worker_list, self.config['num_closest_obs'], self.config, self.nusc, self.helper) for worker_list in worker_lists]
-
-        ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
-
-
         
 if __name__ == "__main__":
-    import os
-
-    config = {
-        'obs_steps':2,
-        'pred_steps': 6,
-        'freq':2,
-        'num_closest_obs': 4,
-        'filtered_data_dir': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'filtered'),
-        'data_save_dir': os.path.join(os.environ['PKG_PATH'], 'create_dataset', 'processed_dataset', 'processed_dataset.pkl'),
-    }
-
-    cls = ProcessTrainingData(config)
-    cls.process()
-
-
-
+    pass
