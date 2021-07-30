@@ -16,7 +16,7 @@ def rollout(scene_name=None,
             debug=False, 
             logger=None,
             scene_image_dir=None,
-            demo_goal_termination=True):
+            demo_goal_termination=False):
 
     if scene_image_dir is not None:
         save_img_dir = os.path.join(scene_image_dir, scene_name)
@@ -53,6 +53,7 @@ def rollout(scene_name=None,
 
         ego_goal = convert_global_coords_to_local(np.array([obs['ego_pos_traj'][-1][:2]]), obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
         print(f"goal: {ego_goal}")
+
         action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
         policy_info_traj.append(other_info)
         

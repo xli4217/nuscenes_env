@@ -42,34 +42,6 @@ def get_config(dataset_type='mini',
         os.makedirs(dir_final)
 
 
-    #### NuScenesAgent config ####
-    na_config = RawData_NuScenesAgent_config = {
-        'version':version,
-        'debug': False,
-        'pred_horizon': 6,
-        'obs_horizon': 2,
-        'freq': 2,
-        'load_dataset': True,
-        'debug': False,
-        'py_logging_path': None,
-        'tb_logging_path': None
-    }
-
-
-    #### NuScenesEnv config ####
-    env_config = {
-        'NuScenesAgent_config':RawData_NuScenesAgent_config,
-        'Sensor_config': {'sensing_patch_size': (60,60), 'agent_road_objects': True},
-        'render_paper_ready': False,
-        'render_type': [],
-        #'render_type': [],
-        #'render_elements': ['sensor_info'],
-        'patch_margin': 35,
-        'save_image_dir': os.path.join(os.environ['PKG_PATH'], 'dataset', 'raw', 'image'),
-        'all_info_fields': ['center_lane', 'raster_image'],
-        #'all_info_fields': ['center_lane']
-    }
-
     if mode == 'raw':
         #### ProcessRawData config ####
         config = {
