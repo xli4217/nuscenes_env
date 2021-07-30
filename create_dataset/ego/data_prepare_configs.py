@@ -3,15 +3,27 @@ from pathlib import Path
 import fire
 import pandas as pd
 from create_dataset.ray_data_processor import RayDataProcessor
-from paths import mini_path, full_path
 
 from create_dataset.vehicle_behavior_filter.filters.scenario_filters import *
 from create_dataset.vehicle_behavior_filter.filters.interaction_filters import *
 from create_dataset.vehicle_behavior_filter.filters.maneuver_filters import *
 
-def set_dir(data_root_dir=None):
-    if data_root_dir is None:
-        data_root_dir = os.path.join(str(Path(os.environ['PKG_PATH']).parent), 'data_df')
+def get_config(dataset_type='mini',
+               data_root_dir=os.path.join(str(Path(os.environ['PKG_PATH']).parent), 'data_df'),
+               ego_or_ado='ego',
+               num_workers=30,
+               mode='raw'
+):
+    
+
+    NUM_WORKERS = num_workers
+
+    if dataset_type == 'mini':
+        version = 'v1.0-mini'
+    elif dataset_type == 'full':
+        version = 'v1.0'
+
+    data_root_dir = os.path.join(data_root_dir, 'ego_or_ado')
         
     dir_raw = os.path.join(data_root_dir, 'raw', 'scene_df')
     if not os.path.isdir(dir_raw):
@@ -21,27 +33,13 @@ def set_dir(data_root_dir=None):
     if not os.path.isdir(dir_filter):
         os.makedirs(dir_filter)
 
-    dir_training = os.path.join(data_root_dir, 'training', 'scene_df')
-    if not os.path.isdir(dir_training):
-        os.makedirs(dir_training)
+    dir_processed = os.path.join(data_root_dir, 'processed', 'scene_df')
+    if not os.path.isdir(dir_processed):
+        os.makedirs(dir_processed)
 
-    return dir_raw, dir_filter, dir_training
-
-def get_config(dataset_type='full',
-               data_root_dir=None,
-               num_workers=30,
-               mode='raw'
-):
-    
-    dir_raw, dir_filter, dir_training = set_dir(data_root_dir)
-    
-    NUM_WORKERS = num_workers
-
-    if dataset_type == 'mini':
-        version = 'v1.0-mini'
-    elif dataset_type == 'full':
-        version = 'v1.0'
-
+    dir_final = os.path.join(data_root_dir, 'final', 'scene_df')
+    if not os.path.isdir(dir_final):
+        os.makedirs(dir_final)
 
 
     #### NuScenesAgent config ####
@@ -75,15 +73,12 @@ def get_config(dataset_type='full',
     if mode == 'raw':
         #### ProcessRawData config ####
         config = {
-            'version': version,
-            'load_data': True,
+            'env_config': env_config,
             'input_data_dir': None,
             'output_data_dir': dir_raw,
             'num_workers': NUM_WORKERS,
-            'other_configs':{
-                'dataroot': full_path
-            },
-            'process_once_func': 'create_dataset.process_raw.process_once'
+            'other_configs':{},
+            'process_once_func': 'create_dataset.process_raw_dataset.process_once'
         }
 
     elif mode == 'filter':
@@ -97,14 +92,28 @@ def get_config(dataset_type='full',
                 'interaction_filters': {'follows': is_follow, 'yields': is_yielding},
                 'maneuver_filters': {'turn_right': is_turning_right, 'turn_left': is_turning_left},
             },
-            'process_once_func': 'create_dataset.process_filtered.process_once'
+            'process_once_func': 'create_dataset.vehicle_behavior_filter.filters.filter_api.run_once'
+        }
+
+    elif mode == 'process':
+        #### Processed Data config ####
+        config = {
+            'version':version,
+            'load_data': True,
+            'input_data_dir': dir_filter,
+            'output_data_dir': dir_processed,
+            'num_workers': NUM_WORKERS,
+            'other_configs':{
+                'additional_history_data': ['ego_raster_img', 'ego_maneuvers']
+            },
+            'process_once_func': 'create_dataset.process_training_data.process_once'
         }
 
     elif mode == 'final':
         #### Process Final  Data config ####
         config = {
             'input_data_dir': dir_processed,
-            'output_data_dir': dir_training,
+            'output_data_dir': dir_final,
             'num_workers': NUM_WORKERS,
             'other_configs':{
                 'nb_closest_ado': 6,

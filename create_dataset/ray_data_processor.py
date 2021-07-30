@@ -17,7 +17,6 @@ class RayDataProcessor(object):
         self.config = {
             'version': 'v1.0-mini',
             'load_data': False,
-            'env_config': None,
             'input_data_dir': None,
             'output_data_dir': None,
             'num_workers': 1,
@@ -38,11 +37,13 @@ class RayDataProcessor(object):
                 self.nusc = NuScenes(dataroot=full_path, version='v1.0')
             self.helper = PredictHelper(self.nusc)
             
-        #### load env ####
-        self.env = None
-        if self.config['env_config'] is not None:
-            self.env = NuScenesEnv(self.config['env_config'])
+        # get total worker list #
+        if self.config['input_data_dir'] is not None:
+            self.input_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
+        else:
+            self.input_data_fn = [scene['name'] for scene in self.nusc.scene]
             
+        #### configure Ray ####
         if self.config['num_workers'] > 1:
             ray.shutdown()
             if os.environ['COMPUTE_LOCATION'] == 'local':
@@ -51,6 +52,7 @@ class RayDataProcessor(object):
                 #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
                 ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
             self.process_once_func = ray.remote(class_from_path(self.config['process_once_func']))
+            #### initialize nusc ####
             if self.nusc is not None:
                 self.nusc = ray.put(self.nusc)
             if self.helper is not None:
@@ -62,16 +64,7 @@ class RayDataProcessor(object):
 
         self.config['other_configs']['nusc'] = self.nusc
         self.config['other_configs']['helper'] = self.helper
-        self.config['other_configs']['env'] = self.env
 
-        # get total worker list #
-        if self.config['input_data_dir'] is not None:
-            self.input_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
-        elif self.env is not None:
-            nb_scenes = len(self.env.nusc.scene)
-            self.input_data_fn = list(range(len(nb_scenes)))
-        else:
-            raise ValueError()
             
     def run(self):
         if self.config['num_workers'] > 1:

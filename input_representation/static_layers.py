@@ -256,15 +256,16 @@ class StaticLayerRasterizer(StaticLayerRepresentation):
 
         if not ego:
             sample_annotation = self.helper.get_sample_annotation(instance_token, sample_token)
-        elif ego_pose is None:
-            sample_ = self.helper.data.get('sample', sample_token)
-            sample_data = self.helper.data.get('sample_data', sample_['data']['CAM_FRONT'])
-            ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
-        sample_annotation = {
-            'translation': ego_pose['translation'],
-            'rotation': ego_pose['rotation'],
-            'instance_token': None
-        }
+        else:
+            if ego_pose is None:
+                sample_ = self.helper.data.get('sample', sample_token)
+                sample_data = self.helper.data.get('sample_data', sample_['data']['CAM_FRONT'])
+                ego_pose = self.helper.data.get('ego_pose', sample_data['ego_pose_token'])
+            sample_annotation = {
+                'translation': ego_pose['translation'],
+                'rotation': ego_pose['rotation'],
+                'instance_token': None
+            }
 
         map_name = self.helper.get_map_name_from_sample_token(sample_token)
 

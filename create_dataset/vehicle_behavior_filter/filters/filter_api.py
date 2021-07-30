@@ -135,40 +135,6 @@ def run_once(df_path_list=[], save_dir=None, config={}):
         if save_dir is not None:
             scene_df.to_pickle(os.path.join(save_dir, scene_name+".pkl"))
             
-
-# class FilterApi(object):
-
-#     def __init__(self, config={}):
-#         self.config = {
-#             'raw_data_dir': "",
-#             'filtered_data_save_dir': "",
-#             'scenario_filters': {},
-#             'interaction_filters': {},
-#             'maneuvers_filters': {},
-#             'num_workers': 1
-#         }
-#         self.config.update(config)
-        
-#         self.raw_data_fn = [str(p) for p in Path(self.config['raw_data_dir']).rglob('*.pkl')]
-
-#         if self.config['num_workers'] > 1:
-#             ray.shutdown()
-#             if os.environ['COMPUTE_LOCATION'] == 'local':
-#                 ray.init()
-#             else:
-#                 #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
-#                 ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
-#             self.run_once_remote = ray.remote(run_once)
-                
-#     def run(self):
-#         if self.config['num_workers'] > 1:
-#             worker_lists = split_list_for_multi_worker(self.raw_data_fn, self.config['num_workers'])
-        
-#             obj_refs = [self.run_once_remote.remote(worker_list, self.config['filtered_data_save_dir'], self.config) for worker_list in worker_lists]
-
-#             ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
-#         else:
-#             run_once(self.raw_data_fn, self.config['filtered_data_save_dir'], self.config)
             
         
 if __name__ == "__main__":
