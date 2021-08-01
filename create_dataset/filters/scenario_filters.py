@@ -2,10 +2,9 @@ import numpy as np
 import tqdm
 import pandas as pd
 
-#### TODO: remove this 
-# from paths import mini_path
+from paths import mini_path, full_path
 # from nuscenes.nuscenes import NuScenes
-# from nuscenes.map_expansion.map_api import NuScenesMap
+from nuscenes.map_expansion.map_api import NuScenesMap
 
 # nusc = NuScenes(version='v1.0-mini', dataroot=mini_path, verbose=True)
 
@@ -15,6 +14,22 @@ def is_in_intersection(road_objects):
             return True
     return False
 
+
+def scenario_filter(scene_df, senarios=[]):
+    nusc_map = NuScenesMap(dataroot=full_path, map_name=filtered_df.iloc[0]['scene_location'])
+            
+    del_idx = []
+    for i, idx in scene_df.iterrows():
+        instance_road_object_traj = idx.current_instance_on_road_objects + idx.future_instance_on_road_objects
+        for road_objects in instance_road_object_traj:
+            if 'intersection' in senarios:
+                if road_objects['road_segment'] is not "":
+                    r = nusc_map.get('road_segment', ego_road_objects['road_segment'])
+                    if not r['is_intersection']:
+                        pass
+    filtered_df = scene_df.drop(del_idx).reset_index(drop=True)
+    return scenario_filter
+    
 # def is_in_intersection1(df):
 #     """returns scenes where ego vehicle has passed through an intersection
 

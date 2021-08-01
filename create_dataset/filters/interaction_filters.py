@@ -75,8 +75,6 @@ def is_yielding(agent_trajectories: OrderedDict, map_elements: OrderedDict):
     v_angle = np.arccos(np.dot(v1_dir, v2_dir))
 
     # if "2f44" in list(agent_trajectories.keys())[0] and "b715" in list(agent_trajectories.keys())[1]:
-
-    #     import ipdb; ipdb.set_trace()
         
     if v1 < 3 and np.rad2deg(v_angle) > 40: # agent1 is slowed down
         sl1 = LineString(traj1.tolist())

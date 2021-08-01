@@ -1,2 +1,0 @@
-- get filter to work on ego-centric env
-- get filter to work on agent-centric env

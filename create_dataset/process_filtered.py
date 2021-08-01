@@ -3,6 +3,7 @@ import pandas as pd
 import tqdm
 import json
 import numpy as np
+from nuscenes.map_expansion.map_api import NuScenesMap
 
 def unique(list1):
 
@@ -30,7 +31,8 @@ def unique(list1):
         return [json.dumps(tp) for tp in unique_list]
 
     return unique_list
-            
+    
+
 def process_once(data_df_list=[], data_save_dir=None, config={}):
     """from each sample slice, add turn each agent field into past, current, future. And add filtered fields
 
@@ -41,6 +43,18 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
     """
 
+    keep_categories = config['other_configs']['categories']
+    keep_attributes = config['other_configs']['attributes']
+    keep_scenarios = config['other_configs']['scenarios']
+
+    scenario_filter = config['other_configs']['scenario_filter']
+    maneuver_filters = config['other_configs']['maneuver_filters']
+    interaction_filters = config['other_configs']['interaction_filters']
+    interaction_filter_range = config['other_configs']['interaction_filter_range']
+    
+    ##################################
+    # add past and present to fields #
+    ##################################
     for df_fn in tqdm.tqdm(data_df_list):
         df = pd.read_pickle(df_fn)
         scene_name = df.iloc[0].scene_name
@@ -88,4 +102,29 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                     filtered_df_dict['future_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:])
 
         filtered_df = pd.DataFrame(filtered_df_dict)
+
+        #############
+        # Filtering #
+        #############
+        
+        #### filter categories ####
+        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_category))].reset_index(drop=True)
+
+        #### filter attributes ####
+        
+        ### filter scenarios ####
+        # filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
+
+        #### add maneuvers ####
+        for maneuver_filter in maneuver_filters:
+            pass
+
+        #### add interactions ####
+        
+        
+        ##########################
+        # save filtered_scene_df #
+        ##########################
         filtered_df.to_pickle(data_save_dir+"/"+scene_name+".pkl")
+        
+

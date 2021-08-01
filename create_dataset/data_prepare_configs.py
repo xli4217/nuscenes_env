@@ -5,9 +5,9 @@ import pandas as pd
 from create_dataset.ray_data_processor import RayDataProcessor
 from paths import mini_path, full_path
 
-from create_dataset.vehicle_behavior_filter.filters.scenario_filters import *
-from create_dataset.vehicle_behavior_filter.filters.interaction_filters import *
-from create_dataset.vehicle_behavior_filter.filters.maneuver_filters import *
+from create_dataset.filters.scenario_filters import *
+from create_dataset.filters.interaction_filters import *
+from create_dataset.filters.maneuver_filters import *
 
 def set_dir(data_root_dir=None):
     if data_root_dir is None:
@@ -93,25 +93,29 @@ def get_config(dataset_type='full',
             'output_data_dir': dir_filter,
             'num_workers': NUM_WORKERS,
             'other_configs':{
-                'scenario_filters': {'in_intersection': is_in_intersection},
+                'categories': ['vehicle'],
+                'attributes': ['stopped', 'moving'],
+                'scenarios': ['intersection'],
+                'scenerio_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
+                'interaction_filter_range': 30,
                 'interaction_filters': {'follows': is_follow, 'yields': is_yielding},
                 'maneuver_filters': {'turn_right': is_turning_right, 'turn_left': is_turning_left},
             },
             'process_once_func': 'create_dataset.process_filtered.process_once'
         }
 
-    elif mode == 'final':
+    elif mode == 'training':
         #### Process Final  Data config ####
         config = {
-            'input_data_dir': dir_processed,
+            'input_data_dir': dir_filter,
             'output_data_dir': dir_training,
             'num_workers': NUM_WORKERS,
             'other_configs':{
-                'nb_closest_ado': 6,
+                'nb_closest_neighbors': 6,
                 'obs_steps': 4,
                 'pred_steps': 6
             },
-            'process_once_func': 'create_dataset.process_final_data.process_once'
+            'process_once_func': 'create_dataset.process_type_and_shape.process_once'
         }
 
 
