@@ -14,15 +14,27 @@ class ProcessDatasetSplit(object):
             'final_data_dir': "",
             'save_dir': "",
             # key is column name in the dataframe, value is normalized range (to [0, value])
-            'normalize_elements': {'ego_current_vel': 1, 'ego_current_steering': 2},
-            'train_val_split_filter': None,
+            'normalize_elements': {'current_ego_speed': 1, 'current_ego_steering': 2},
+            'train_val_split_filter': {
+                'type': None,
+                'config': {}
+            },
+            'additional_processor': {
+                'type': None,
+                'config': {}
+            },
             'kept_columns': []
         }
         self.config.update(config)
 
-        if self.config['train_val_split_filter'] is None:
+        if self.config['train_val_split_filter']['type'] is None:
             raise ValueError('train val split filter not provided')
-        self.train_val_split_filter = class_from_path(self.config['train_val_split_filter'])
+        self.train_val_split_filter = class_from_path(self.config['train_val_split_filter']['type'])
+        
+        self.additional_processor = None
+        if self.config['additional_processor']['type'] is not None:
+            self.additional_processor = class_from_path(self.config['additional_processor']['type'])
+    
         
         self.final_data_fn = [str(p) for p in Path(self.config['final_data_dir']).rglob('*.pkl')]
 
@@ -39,13 +51,14 @@ class ProcessDatasetSplit(object):
         print(f"normalize_elements: {normalize_elements}")
         element_min_max = {}
         for k, v in normalize_elements.items():
-            df['origin_'+k] = df[k]
-            element = np.array(df[k].tolist())
-            element_min = element.min()
-            element_max = element.max()
-            element_min_max[k] = {'min': element_min, 'max': element_max, 'upper_bound':v}
-            df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
-
+            if 'img' not in k:
+                df['origin_'+k] = df[k]
+                element = np.array(df[k].tolist())
+                element_min = element.min()
+                element_max = element.max()
+                element_min_max[k] = {'min': element_min, 'max': element_max, 'upper_bound':v}
+                df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
+                   
         # save image mean and variance for normalization #
         raster = np.array(df.current_ego_raster_img.tolist())
         data_size, channels, w, h = raster.shape
@@ -66,7 +79,9 @@ class ProcessDatasetSplit(object):
         """
 
         df = pd.DataFrame(self.data)
-        train_df, val_df = self.create_train_val_split(df)
+        if self.additional_processor is not None:
+            df = self.additional_processor(df, self.config['additional_processor']['config'])
+        train_df, val_df = self.create_train_val_split(df, self.config['train_val_split_filter']['config'])
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")
         

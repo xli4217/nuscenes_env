@@ -9,19 +9,24 @@ from create_dataset.filters.scenario_filters import *
 from create_dataset.filters.interaction_filters import *
 from create_dataset.filters.maneuver_filters import *
 
-def set_dir(data_root_dir=None):
+def set_dir(data_root_dir=None, test=False):
     if data_root_dir is None:
         data_root_dir = os.path.join(str(Path(os.environ['PKG_PATH']).parent), 'data_df')
+
+    if test:
+        test_dir = 'test'
+    else:
+        test_dir = ''
         
-    dir_raw = os.path.join(data_root_dir, 'raw', 'scene_df')
+    dir_raw = os.path.join(data_root_dir, 'raw', 'scene_df', test_dir)
     if not os.path.isdir(dir_raw):
         os.makedirs(dir_raw)
 
-    dir_filter = os.path.join(data_root_dir, 'filtered', 'scene_df')
+    dir_filter = os.path.join(data_root_dir, 'filtered', 'scene_df', test_dir)
     if not os.path.isdir(dir_filter):
         os.makedirs(dir_filter)
 
-    dir_training = os.path.join(data_root_dir, 'training', 'scene_df')
+    dir_training = os.path.join(data_root_dir, 'training', 'scene_df', test_dir)
     if not os.path.isdir(dir_training):
         os.makedirs(dir_training)
 
@@ -30,10 +35,11 @@ def set_dir(data_root_dir=None):
 def get_config(dataset_type='full',
                data_root_dir=None,
                num_workers=30,
-               mode='raw'
+               mode='raw',
+               test=False
 ):
     
-    dir_raw, dir_filter, dir_training = set_dir(data_root_dir)
+    dir_raw, dir_filter, dir_training = set_dir(data_root_dir, test)
     
     NUM_WORKERS = num_workers
 
@@ -80,6 +86,7 @@ def get_config(dataset_type='full',
             'input_data_dir': None,
             'output_data_dir': dir_raw,
             'num_workers': NUM_WORKERS,
+            'process_from_scratch': False,
             'other_configs':{
                 'dataroot': full_path
             },
@@ -96,7 +103,7 @@ def get_config(dataset_type='full',
                 'categories': ['vehicle'],
                 'attributes': ['stopped', 'moving'],
                 'scenarios': ['intersection'],
-                'scenerio_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
+                'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
                 'interaction_filter_range': 30,
                 'interaction_filters': {'follows': is_follow, 'yields': is_yielding},
                 'maneuver_filters': {'turn_right': is_turning_right, 'turn_left': is_turning_left},
@@ -111,7 +118,6 @@ def get_config(dataset_type='full',
             'output_data_dir': dir_training,
             'num_workers': NUM_WORKERS,
             'other_configs':{
-                'nb_closest_neighbors': 6,
                 'obs_steps': 4,
                 'pred_steps': 6
             },

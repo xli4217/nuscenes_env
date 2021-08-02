@@ -15,10 +15,6 @@ def unique(list1):
      
     # traverse for all elements
     for x in list1:
-        # check if exists in unique_list or not
-        if isinstance(list1[0], list):
-            if x not in unique_list:
-                unique_list.append(x)
         if isinstance(list1[0], np.ndarray):
             in_list = False
             for y in unique_list:
@@ -26,9 +22,14 @@ def unique(list1):
                     in_list = True
             if not in_list:
                 unique_list.append(x)
-                
-    if isinstance(list1[0], list):
-        return [json.dumps(tp) for tp in unique_list]
+        else:
+            # check if exists in unique_list or not
+            if x not in unique_list:
+                unique_list.append(x)
+
+    if isinstance(unique_list[0], str):
+        r = [json.loads(tp) for tp in unique_list]
+        return r
 
     return unique_list
     
@@ -97,6 +98,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 if 'current_ego' in k:
                     filtered_df_dict['past_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][sample_idx+1:])
+
                 if 'current_instance' in k:
                     filtered_df_dict['past_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:])
@@ -108,7 +110,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #############
         
         #### filter categories ####
-        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_category))].reset_index(drop=True)
+        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True)
 
         #### filter attributes ####
         

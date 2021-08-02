@@ -1,13 +1,9 @@
+import ray
 import os
 import pandas as pd
 import tqdm
 import copy
 import time
-
-from input_representation.static_layers import StaticLayerRasterizer
-from input_representation.agents import AgentBoxesWithFadedHistory
-from input_representation.interface import InputRepresentation
-from input_representation.combinators import Rasterizer
 
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.map_expansion.map_api import NuScenesMap
@@ -24,7 +20,7 @@ def filter_instance(sample_annotation, nusc):
         return True
     else:
         return False
-    
+
 def process_once(scene_name_list=[], data_save_dir=None, config={}):
     """get raw data from dataset, everything are lists
 
@@ -34,14 +30,12 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
     :returns: one pandas dataframe for each scene
 
     """
-    nusc = config['other_configs']['nusc']
-    helper = config['other_configs']['helper']
+    nusc = ray.get(config['other_configs']['nusc'])
+    helper = ray.get(config['other_configs']['helper'])
+    rasterizer = ray.get(config['other_configs']['rasterizer'])
     dataroot = config['other_configs']['dataroot']
     
     nusc_can = NuScenesCanBus(dataroot=dataroot)
-    static_layer_rasterizer = StaticLayerRasterizer(helper, resolution=0.2)
-    agent_rasterizer = AgentBoxesWithFadedHistory(helper, seconds_of_history=2, resolution=0.2)
-    rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
    
     df_dict = {
         #### scene info ####

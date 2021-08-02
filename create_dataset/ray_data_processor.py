@@ -9,6 +9,10 @@ from paths import mini_path, full_path
 
 from nuscenes_env.nuscenes.prediction.helper import PredictHelper
 from nuscenes_env.nuscenes import NuScenes
+from input_representation.static_layers import StaticLayerRasterizer
+from input_representation.agents import AgentBoxesWithFadedHistory
+from input_representation.interface import InputRepresentation
+from input_representation.combinators import Rasterizer
 
 
 class RayDataProcessor(object):
@@ -20,6 +24,7 @@ class RayDataProcessor(object):
             'input_data_dir': None,
             'output_data_dir': None,
             'num_workers': 1,
+            'process_from_scratch': True,
             'other_configs': {
             },
             'process_once_func': ""
@@ -29,6 +34,7 @@ class RayDataProcessor(object):
 
         self.nusc = None
         self.helper = None
+        self.rasterizer = None
         #### load nuscenes ####
         if self.config['load_data']:
             if self.config['version'] == 'v1.0-mini':
@@ -36,13 +42,25 @@ class RayDataProcessor(object):
             if self.config['version'] == 'v1.0':
                 self.nusc = NuScenes(dataroot=full_path, version='v1.0')
             self.helper = PredictHelper(self.nusc)
+            static_layer_rasterizer = StaticLayerRasterizer(self.helper, resolution=0.2)
+            agent_rasterizer = AgentBoxesWithFadedHistory(self.helper, seconds_of_history=2, resolution=0.2)
+            self.rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
+
             
         # get total worker list #
         if self.config['input_data_dir'] is not None:
             self.input_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
         else:
+            # currently on used in process_raw
             self.input_data_fn = [scene['name'] for scene in self.nusc.scene]
-            
+            if not self.config['process_from_scratch']:
+                processed_scenes = [str(p).split('/')[-1][:-4] for p in Path(self.config['output_data_dir']).rglob('*.pkl')]
+                actual_input_data_fn = []
+                for scene_name in self.input_data_fn:
+                    if scene_name not in processed_scenes:
+                        actual_input_data_fn.append(scene_name)
+                self.input_data_fn = actual_input_data_fn
+                
         #### configure Ray ####
         if self.config['num_workers'] > 1:
             ray.shutdown()
@@ -57,14 +75,14 @@ class RayDataProcessor(object):
                 self.nusc = ray.put(self.nusc)
             if self.helper is not None:
                 self.helper = ray.put(self.helper)
-            if self.env is not None:
-                self.env = ray.put(self.env)
+            if self.rasterizer is not None:
+                self.rasterizer = ray.put(self.rasterizer)
         else:
             self.process_once_func = class_from_path(self.config['process_once_func'])
 
         self.config['other_configs']['nusc'] = self.nusc
         self.config['other_configs']['helper'] = self.helper
-
+        self.config['other_configs']['rasterizer'] = self.rasterizer
             
     def run(self):
         if self.config['num_workers'] > 1:
