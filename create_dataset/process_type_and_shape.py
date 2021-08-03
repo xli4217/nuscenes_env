@@ -36,11 +36,9 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
             continue
         
         training_df_dict = {}
-        ego_nearest_neighbors = []
-        ado_nearest_neighbors = []
         for k in list(df.keys()):
             training_df_dict[k] = []
-
+            
         for i, r in df.iterrows():
             for k in list(r.keys()):
                 for np_k in numpy_data_keys:
