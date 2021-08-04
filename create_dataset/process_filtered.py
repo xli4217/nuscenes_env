@@ -4,6 +4,7 @@ import tqdm
 import json
 import numpy as np
 from nuscenes.map_expansion.map_api import NuScenesMap
+from utils.utils import class_from_path
 
 def unique(list1):
 
@@ -105,9 +106,51 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
         filtered_df = pd.DataFrame(filtered_df_dict)
 
+        #########################
+        # Add nearest neighbors #
+        #########################
+        ego_neighbors = []
+        instance_neighbors = []
+        
+        sample_based_df = filtered_df.set_index(['sample_idx'])
+        for sample_idx, sample_df in sample_based_df.groupby(level='sample_idx'):
+            all_agent_tokens = sample_df.instance_token.tolist()
+            all_agent_tokens.append('ego')
+            all_agent_tokens = np.array(all_agent_tokens)
+            all_agent_pos = sample_df.current_instance_pos.tolist()
+            all_agent_pos.append(sample_df.iloc[0].current_ego_pos)
+            all_agent_pos = np.array(all_agent_pos)
+            
+            #### get ego neighbors ####
+            dist = np.linalg.norm(np.array(sample_df.iloc[0].current_ego_pos) - all_agent_pos, axis=1)
+            idx = np.argsort(dist)
+            sorted_all_agent_tokens = all_agent_tokens[idx]
+            sorted_dist = dist[idx]
+            ego_neighbors += [(sorted_all_agent_tokens.tolist()[1:], sorted_dist.tolist()[1:])] * sample_df.shape[0]
+
+            #### get ado neighbors ####
+            for i, r in sample_df.iterrows():
+                dist = np.linalg.norm(np.array(r.current_instance_pos) - all_agent_pos, axis=1)
+                idx = np.argsort(dist)
+                sorted_all_agent_tokens = all_agent_tokens[idx]
+                sorted_dist = dist[idx]
+                instance_neighbors.append((sorted_all_agent_tokens.tolist()[1:], sorted_dist.tolist()[1:]))
+                
+        filtered_df['current_ego_neighbors'] = ego_neighbors
+        filtered_df['current_instance_neighbors'] = instance_neighbors
+        
         #############
         # Filtering #
         #############
+
+        #### add maneuvers ####
+        for maneuver_name, maneuver_filter in maneuver_filters.items():
+            filtered_df = maneuver_filter(filtered_df)
+            
+        #### add interactions ####
+        for interaction_name, interaction_filter in interaction_filters.items():
+            filtered_df = interaction_filter(filtered_df)
+
         
         #### filter categories ####
         filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True)
@@ -115,14 +158,8 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #### filter attributes ####
         
         ### filter scenarios ####
-        # filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
+        filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
 
-        #### add maneuvers ####
-        for maneuver_filter in maneuver_filters:
-            pass
-
-        #### add interactions ####
-        
         
         ##########################
         # save filtered_scene_df #

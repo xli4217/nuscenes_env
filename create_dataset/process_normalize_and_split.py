@@ -22,8 +22,7 @@ class ProcessDatasetSplit(object):
             'additional_processor': {
                 'type': None,
                 'config': {}
-            },
-            'kept_columns': []
+            }
         }
         self.config.update(config)
 
@@ -39,7 +38,7 @@ class ProcessDatasetSplit(object):
         self.final_data_fn = [str(p) for p in Path(self.config['final_data_dir']).rglob('*.pkl')]
 
         df_list = []
-        for p in tqdm.tqdm(self.final_data_fn):
+        for p in self.final_data_fn:
             df = pd.read_pickle(p)
             df_list.append(df)
         
@@ -60,7 +59,7 @@ class ProcessDatasetSplit(object):
                 df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
                    
         # save image mean and variance for normalization #
-        raster = np.array(df.current_ego_raster_img.tolist())
+        raster = np.array(df.current_agent_raster.tolist())
         data_size, channels, w, h = raster.shape
         raster = raster.reshape(data_size, channels, w*h)
         raster = np.transpose(raster, (1,2,0))
@@ -81,7 +80,7 @@ class ProcessDatasetSplit(object):
         df = pd.DataFrame(self.data)
         if self.additional_processor is not None:
             df = self.additional_processor(df, self.config['additional_processor']['config'])
-        train_df, val_df = self.create_train_val_split(df, self.config['train_val_split_filter']['config'])
+        train_df, val_df = self.create_train_val_split(df)
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")
         
@@ -90,10 +89,10 @@ class ProcessDatasetSplit(object):
 
     def create_train_val_split(self, df):
         normalized_df = self.normalize(df, normalize_elements=self.config['normalize_elements'])
-        train_df, val_df = self.train_val_split_filter(normalized_df)
+        train_df, val_df = self.train_val_split_filter(normalized_df, self.config['train_val_split_filter']['config'])
 
-        normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
+        # normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
 
-        return train_df[self.config['kept_columns']], val_df[self.config['kept_columns']]
+        return train_df, val_df
 
         

@@ -1,35 +1,28 @@
 import numpy as np
 from collections import OrderedDict
 
-def is_accelerating():
-    pass
 
-def is_deccelerating():
-    pass
+def ego_maneuver_filter(scene_df):
+    ego_maneuver_list = []
+    for i, r in scene_df.iterrows():
+        current_ego_maneuvers = []
 
-def is_turning_right(agent_trajectory_dict):
-    traj1 = agent_trajectory_dict
-
-    steering_history = np.concatenate([np.array([traj1['current_steering']]), traj1['past_steering']])
-    chosen_history_len = min(4, steering_history.size)
-
-    recent_steering_history = steering_history[-chosen_history_len:]
-    if recent_steering_history.mean() < -0.1:
-        return True
-    else:
-        return False
+        #### Steering ####
+        # use average of past 5 timesteps
+        past_steering = [s[-1] for s in r.past_ego_steering[-4:] if len(r.past_ego_steering) > 0]
     
+        ego_steering_history = [0]*4 + past_steering + [r.current_ego_steering[-1]]
 
-def is_turning_left(agent_trajectory_dict):
-    traj1 = agent_trajectory_dict
+        if np.array(ego_steering_history).mean() < -0.1:
+            current_ego_maneuvers.append('turn_left')
+        elif np.array(ego_steering_history).mean() > 0.1:
+            current_ego_maneuvers.append('turn_right')
 
-    steering_history = np.concatenate([np.array([traj1['current_steering']]), traj1['past_steering']])
-    chosen_history_len = min(4, steering_history.size)
+        ego_maneuver_list.append(current_ego_maneuvers)
 
-    recent_steering_history = steering_history[-chosen_history_len:]
 
-    if recent_steering_history.mean() > 0.1:
-        return True
-    else:
-        return False
+    scene_df['current_ego_maneuvers'] = ego_maneuver_list
+    return scene_df
 
+def ado_maneuver_filter(scene_df):
+    return scene_df

@@ -105,8 +105,14 @@ def get_config(dataset_type='full',
                 'scenarios': ['intersection'],
                 'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
                 'interaction_filter_range': 30,
-                'interaction_filters': {'follows': is_follow, 'yields': is_yielding},
-                'maneuver_filters': {'turn_right': is_turning_right, 'turn_left': is_turning_left},
+                'interaction_filters': {
+                    'lead_follow': lead_follow_filter,
+                    'yielding': yield_filter
+                },
+                'maneuver_filters': {
+                    'ego_maneuver_filter':ego_maneuver_filter,
+                    'ado_maneuver_filter': ado_maneuver_filter
+                },
             },
             'process_once_func': 'create_dataset.process_filtered.process_once'
         }
