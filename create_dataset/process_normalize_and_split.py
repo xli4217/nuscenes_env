@@ -11,7 +11,7 @@ import tqdm
 class ProcessDatasetSplit(object):
     def __init__(self, config={}):
         self.config = {
-            'final_data_dir': "",
+            'training_data_dir': "",
             'save_dir': "",
             # key is column name in the dataframe, value is normalized range (to [0, value])
             'normalize_elements': {'current_ego_speed': 1, 'current_ego_steering': 2},
@@ -35,7 +35,7 @@ class ProcessDatasetSplit(object):
             self.additional_processor = class_from_path(self.config['additional_processor']['type'])
     
         
-        self.final_data_fn = [str(p) for p in Path(self.config['final_data_dir']).rglob('*.pkl')]
+        self.final_data_fn = [str(p) for p in Path(self.config['training_data_dir']).rglob('*.pkl')]
 
         df_list = []
         for p in self.final_data_fn:
@@ -91,7 +91,7 @@ class ProcessDatasetSplit(object):
         normalized_df = self.normalize(df, normalize_elements=self.config['normalize_elements'])
         train_df, val_df = self.train_val_split_filter(normalized_df, self.config['train_val_split_filter']['config'])
 
-        # normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
+        normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
 
         return train_df, val_df
 

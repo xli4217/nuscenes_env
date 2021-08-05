@@ -135,7 +135,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 sorted_all_agent_tokens = all_agent_tokens[idx]
                 sorted_dist = dist[idx]
                 instance_neighbors.append((sorted_all_agent_tokens.tolist()[1:], sorted_dist.tolist()[1:]))
-                
+
         filtered_df['current_ego_neighbors'] = ego_neighbors
         filtered_df['current_instance_neighbors'] = instance_neighbors
         

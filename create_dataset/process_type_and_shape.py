@@ -41,23 +41,23 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
             
         for i, r in df.iterrows():
             for k in list(r.keys()):
-                for np_k in numpy_data_keys:
-                    if np_k not in k and 'current' not in k and 'past' not in k and 'future' not in k:
-                        training_df_dict[k].append(r[k])
-                    else:
-                        if 'current' in k:
-                            training_df_dict[k].append(np.array(r[k]))
-                        elif 'past' in k:
-                            if r[k] == []:
-                                r[k] = np.zeros(np.array(r['current'+k[4:]]).shape)[np.newaxis]
+                if any(np_k in k for np_k in numpy_data_keys):
+                    if 'current' in k:
+                        training_df_dict[k].append(np.array(r[k]))
+                    elif 'past' in k:
+                        if r[k] == []:
+                            r[k] = np.zeros(np.array(r['current'+k[4:]]).shape)[np.newaxis]
 
-                            processed_past = process_to_len(np.array(r[k]), obs_steps, name=k, dim=0, before_or_after='before', mode='constant')
-                            training_df_dict[k].append(processed_past)
-                        elif 'future' in k:
-                            if r[k] == []:
-                                r[k] = np.zeros(np.array(r['current'+k[6:]]).shape)[np.newaxis]
-                            processed_future = process_to_len(np.array(r[k]), pred_steps, name=k, dim=0, before_or_after='after', mode='constant')
-                            training_df_dict[k].append(processed_future)
+                        processed_past = process_to_len(np.array(r[k]), obs_steps, name=k, dim=0, before_or_after='before', mode='constant')
+                        training_df_dict[k].append(processed_past)
+                    elif 'future' in k:
+                        if r[k] == []:
+                            r[k] = np.zeros(np.array(r['current'+k[6:]]).shape)[np.newaxis]
+                        processed_future = process_to_len(np.array(r[k]), pred_steps, name=k, dim=0, before_or_after='after', mode='constant')
+                        training_df_dict[k].append(processed_future)
+                else:
+                    training_df_dict[k].append(r[k])
+                    
 
         training_df = pd.DataFrame(training_df_dict)
 

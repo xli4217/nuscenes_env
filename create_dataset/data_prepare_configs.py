@@ -30,7 +30,11 @@ def set_dir(data_root_dir=None, test=False):
     if not os.path.isdir(dir_training):
         os.makedirs(dir_training)
 
-    return dir_raw, dir_filter, dir_training
+    dir_final = os.path.join(data_root_dir, 'final')
+    if not os.path.isdir(dir_final):
+        os.makedirs(dir_final)
+
+    return dir_raw, dir_filter, dir_training, dir_final
 
 def get_config(dataset_type='full',
                data_root_dir=None,
@@ -39,7 +43,7 @@ def get_config(dataset_type='full',
                test=False
 ):
     
-    dir_raw, dir_filter, dir_training = set_dir(data_root_dir, test)
+    dir_raw, dir_filter, dir_training, dir_final = set_dir(data_root_dir, test)
     
     NUM_WORKERS = num_workers
 
@@ -130,7 +134,30 @@ def get_config(dataset_type='full',
             'process_once_func': 'create_dataset.process_type_and_shape.process_once'
         }
 
+    elif mode == 'final':
+        config = {
+            'training_data_dir': dir_training,
+            'save_dir': dir_final,
+            'train_val_split_filter':{
+                'type': 'create_dataset.dataset_utils.train_val_split_filter',
+                'config': {}
+            }, 
+            'additional_processor': {
+                'type': 'create_dataset.dataset_utils.data_processor',
+                'config': {
+                    'nb_closest_neighbors': 6,
+                    'max_neighbor_range': 40
+                }
+            },
+            'normalize_elements': {
+                # 'past_ego_speed':1,
+                # 'current_ego_speed': 1,
+                # 'past_ego_steering': 2,
+                # 'current_ego_steering': 2
+            }
+        }
 
+        
     else:
         raise ValueError()
 
