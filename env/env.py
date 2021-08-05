@@ -30,6 +30,7 @@ from input_representation.combinators import Rasterizer
 
 from pathlib import Path
 from .env_utils import *
+from .env_render import render
 
 class NuScenesEnv(NuScenesAgent):
 
@@ -314,107 +315,19 @@ class NuScenesEnv(NuScenesAgent):
         return filtered_agent_info
 
     def render(self, render_info={}):
-        if 'image' in self.config['render_type']:
-            sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
-            sim_ego_yaw = quaternion_yaw(sim_ego_yaw)
-            sim_ego_yaw = angle_of_rotation(sim_ego_yaw)
-            sim_ego_yaw = np.rad2deg(sim_ego_yaw)
+        render_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
+        render_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
+        render_info['ap_speed'] = self.ap_speed
+        render_info['ap_steering'] = self.ap_steering
+        render_info['ap_timesteps'] = self.ap_timesteps
+        render_info['scene_name'] = self.scene['name']
+        render_info['all_info'] = self.all_info
+        render_info['sample_token'] = self.sample['token']
+        render_info['intance_token'] = self.instance_token
+        render_info['sample_idx'] = self.sample_idx
 
-            ego_traj = None
-            if 'sim_ego' in self.config['render_elements']:
-                ego_traj = {
-                    # 'lane': {
-                    #     'traj': self.all_info['future_lanes'][0],
-                    #     'color': 'green'
-                    # },
-                    'sim_ego':{
-                        'pos': self.sim_ego_pos_gb,
-                        'yaw': sim_ego_yaw,
-                        'traj': np.zeros((4,2)),
-                        'color': 'yellow'
-                    }
-                }
-
-            #### control plots ####
-            if 'control_plots' in self.config['render_elements']:
-                fig, ax = plt.subplots(2,1)
-                ax[0].plot(list(self.ap_timesteps), list(self.ap_speed), 'o-')
-                ax[0].set_xlabel('timestep', fontsize=20)
-                ax[0].set_ylabel('speed', fontsize=20)
-                ax[1].plot(list(self.ap_timesteps), list(self.ap_steering), 'o-')
-                ax[1].set_xlabel('timestep', fontsize=20)
-                ax[1].set_ylabel('steering', fontsize=20)
-                canvas = FigureCanvas(fig)
-                canvas.draw()
-                width, height = fig.get_size_inches() * fig.get_dpi()
-                image = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
-                if 'image' not in render_info.keys():
-                    render_info['image'] = {}
-                render_info['image'].update({'cmd': image})
-
-
-            if self.config['save_image_dir'] is not None:
-                save_img_dir = os.path.join(self.config['save_image_dir'], str(self.scene['name']))
-                if not os.path.exists(save_img_dir):
-                    os.makedirs(save_img_dir, exist_ok=True)
-
-            sensor_info = None
-            if 'sensor_info' in self.config['render_elements']:
-                sensor_info = self.all_info['sensor_info']
-
-            ado_traj_dict = None
-            if 'ado_traj_dict' in render_info.keys():
-                ado_traj_dict = render_info['ado_traj_dict']
-
-            costmap_contour = None
-            if 'costmap_contour' in render_info.keys():
-                costmap_contour = render_info['costmap_contour']
-
-            other_images_to_be_saved = None
-            if self.all_info['sim_ego_raster_image'] is not None:
-                other_images_to_be_saved = {
-                    'raster': np.transpose(self.all_info['sim_ego_raster_image'], (1,2,0))
-                }
-            if 'image' in render_info.keys():
-                other_images_to_be_saved = render_info['image']
-
-            render_additional = {}
-            if 'lines' in render_info.keys():
-                render_additional['lines'] = render_info['lines']
-            if 'scatters' in render_info.keys():
-                render_additional['scatters'] = render_info['scatters']
-            if 'text_boxes' in render_info.keys():
-                render_additional['text_boxes'] = render_info['text_boxes']
-
-            if self.instance_token is None:
-                ego_centric = True
-            else:
-                ego_centric = False
-
-            plot_human_ego = True
-            if 'human_ego' not in self.config['render_elements']:
-                plot_human_ego = False
-
-            fig, ax = self.graphics.plot_ego_scene(
-                ego_centric=ego_centric,
-                sample_token=self.sample['token'],
-                instance_token=self.instance_token,
-                ego_traj=ego_traj,
-                ado_traj=ado_traj_dict,
-                contour=costmap_contour,
-                save_img_dir=save_img_dir,
-                idx=str(self.sample_idx).zfill(2),
-                sensor_info=sensor_info,
-                paper_ready=self.config['render_paper_ready'],
-                other_images_to_be_saved=other_images_to_be_saved,
-                render_additional = render_additional,
-                plot_human_ego=plot_human_ego,
-                patch_margin=self.config['patch_margin'],
-            )
-            plt.show()
-
-            return fig, ax
-
+        return render(self.graphics, render_info, self.config)
+        
     def step(self, action:np.ndarray=None, render_info={}):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
