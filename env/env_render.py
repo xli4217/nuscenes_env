@@ -1,4 +1,9 @@
 import matplotlib.pyplot as plt
+from pyquaternion import Quaternion
+from nuscenes.prediction.helper import angle_of_rotation
+from nuscenes.eval.common.utils import quaternion_yaw
+import numpy as np
+import os
 
 def render(graphics, render_info, config={}):
     
@@ -16,7 +21,7 @@ def render(graphics, render_info, config={}):
                 #     'color': 'green'
                 # },
                 'sim_ego':{
-                    'pos': config['sim_ego_pos_gb'],
+                    'pos': render_info['sim_ego_pos_gb'],
                     'yaw': sim_ego_yaw,
                     'traj': np.zeros((4,2)),
                     'color': 'yellow'
@@ -41,11 +46,11 @@ def render(graphics, render_info, config={}):
             render_info['image'].update({'cmd': image})
 
 
-        if self.config['save_image_dir'] is not None:
-            save_img_dir = os.path.join(config['save_image_dir'], str(self.render_info['scene_name']))
+        if config['save_image_dir'] is not None:
+            save_img_dir = os.path.join(config['save_image_dir'], str(render_info['scene_name']))
             if not os.path.exists(save_img_dir):
                 os.makedirs(save_img_dir, exist_ok=True)
-
+                
         sensor_info = None
         if 'sensor_info' in config['render_elements']:
             sensor_info = render_info['all_info']['sensor_info']
@@ -59,7 +64,7 @@ def render(graphics, render_info, config={}):
             costmap_contour = render_info['costmap_contour']
 
         other_images_to_be_saved = None
-        if self.all_info['sim_ego_raster_image'] is not None:
+        if render_info['all_info']['sim_ego_raster_image'] is not None:
             other_images_to_be_saved = {
                 'raster': np.transpose(render_info['all_info']['sim_ego_raster_image'], (1,2,0))
             }
@@ -74,7 +79,7 @@ def render(graphics, render_info, config={}):
         if 'text_boxes' in render_info.keys():
             render_additional['text_boxes'] = render_info['text_boxes']
 
-        if self.instance_token is None:
+        if render_info['instance_token'] is None:
             ego_centric = True
         else:
             ego_centric = False

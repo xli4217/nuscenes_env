@@ -17,12 +17,11 @@ def rollout(scene_name=None,
             logger=None,
             scene_image_dir=None,
             demo_goal_termination=False):
-
+    
     if scene_image_dir is not None:
         save_img_dir = os.path.join(scene_image_dir, scene_name)
         if not os.path.exists(save_img_dir):
             os.makedirs(save_img_dir, exist_ok=True)
-
 
     env.py_logger = logger
     if scene_name is not None:
@@ -62,9 +61,9 @@ def rollout(scene_name=None,
 
         #### record scene_info ####
         # scene_info = populate_scene_info(scene_info, obs, policy)
-        
+
         #### one step ####
-        obs, done, other = env.step(action, render_info)
+        obs, done, other = env.step(action, render_info, save_img_dir=scene_image_dir)
 
         ego_traj.append(obs['ego_pos_gb'])
         sim_ego_traj.append(env.sim_ego_pos_gb)
