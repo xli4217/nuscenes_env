@@ -101,7 +101,8 @@ def get_config(dataset_type='full',
         # #### Filter data config ####    
         config = {
             'input_data_dir': dir_raw,
-            'output_data_dir': dir_filter,
+            #'output_data_dir': dir_filter,
+            'output_data_dir': dir_final,
             'num_workers': NUM_WORKERS,
             'other_configs':{
                 'categories': ['vehicle'],
@@ -109,14 +110,14 @@ def get_config(dataset_type='full',
                 'scenarios': ['intersection'],
                 'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
                 'interaction_filter_range': 30,
-                'interaction_filters': {
-                    'lead_follow': lead_follow_filter,
-                    'yielding': yield_filter
-                },
                 'maneuver_filters': {
                     'ego_maneuver_filter':ego_maneuver_filter,
                     'ado_maneuver_filter': ado_maneuver_filter
                 },
+                'obs_steps': 4,
+                'pred_steps': 6,
+                'nb_closest_neighbors': 6,
+                'max_neighbor_range': 40
             },
             'process_once_func': 'create_dataset.process_filtered.process_once'
         }

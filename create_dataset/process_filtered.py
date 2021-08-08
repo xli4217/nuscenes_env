@@ -5,18 +5,23 @@ import json
 import numpy as np
 from nuscenes.map_expansion.map_api import NuScenesMap
 from utils.utils import class_from_path
+from .filters.interaction_filters import interaction_filter
+from .process_type_and_shape import process_once as process_type_and_shape_once
+from .process_finalize import final_data_processor
 
-def unique(list1):
+def unique(list1, key):
 
     if isinstance(list1[0], list):
-        list1 =[json.dumps(tp) for tp in list1]
-    
+        list2 =[json.dumps(tp) for tp in list1]
+    else:
+        list2 = list1
+        
     # intilize a null list
     unique_list = []
      
     # traverse for all elements
-    for x in list1:
-        if isinstance(list1[0], np.ndarray):
+    for x in list2:
+        if isinstance(list2[0], np.ndarray):
             in_list = False
             for y in unique_list:
                 if np.array_equal(x,y):
@@ -28,7 +33,7 @@ def unique(list1):
             if x not in unique_list:
                 unique_list.append(x)
 
-    if isinstance(unique_list[0], str):
+    if isinstance(unique_list[0], str) and isinstance(list1[0], list):
         r = [json.loads(tp) for tp in unique_list]
         return r
 
@@ -51,7 +56,6 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
     scenario_filter = config['other_configs']['scenario_filter']
     maneuver_filters = config['other_configs']['maneuver_filters']
-    interaction_filters = config['other_configs']['interaction_filters']
     interaction_filter_range = config['other_configs']['interaction_filter_range']
     
     ##################################
@@ -75,7 +79,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
                 if 'ego' in key:
                     #### populate ego traj ####                    
-                    ego_traj_dict[key[8:]+"_traj"] = unique(df[key].tolist())
+                    ego_traj_dict[key[8:]+"_traj"] = unique(df[key].tolist(), key)
 
         #### populate instance traj ####
         for instance_token in df.instance_token.unique().tolist():
@@ -103,7 +107,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 if 'current_instance' in k:
                     filtered_df_dict['past_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:])
-
+                    
         filtered_df = pd.DataFrame(filtered_df_dict)
 
         #########################
@@ -138,18 +142,29 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
         filtered_df['current_ego_neighbors'] = ego_neighbors
         filtered_df['current_instance_neighbors'] = instance_neighbors
-        
+
+        ##########################
+        # Process type and shape #
+        ##########################
+        filtered_df = process_type_and_shape_once([filtered_df], config=config)
+
+        ##########################
+        # Normalize And Finalize #
+        ##########################        
+        # TODO: check raster img paths
+        filtered_df = final_data_processor(filtered_df, config)
+
         #############
         # Filtering #
         #############
 
         #### add maneuvers ####
-        for maneuver_name, maneuver_filter in maneuver_filters.items():
-            filtered_df = maneuver_filter(filtered_df)
+        # for maneuver_name, maneuver_filter in maneuver_filters.items():
+        #     filtered_df = maneuver_filter(filtered_df)
             
         #### add interactions ####
-        for interaction_name, interaction_filter in interaction_filters.items():
-            filtered_df = interaction_filter(filtered_df)
+        for interaction_name in ['follows', 'yields']:
+            filtered_df = interaction_filter(filtered_df, interaction_name)
 
         
         #### filter categories ####

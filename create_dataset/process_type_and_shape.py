@@ -26,7 +26,10 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
     ]
     
     for df_fn in tqdm.tqdm(data_df_list):
-        df = pd.read_pickle(df_fn)
+        if isinstance(df_fn, str):
+            df = pd.read_pickle(df_fn)
+        else:
+            df = df_fn
         scene_name = df.iloc[0].scene_name
 
         ######################################
@@ -34,13 +37,20 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         ######################################
         if scene_name in NO_CANBUS_SCENES:
             continue
-        
-        training_df_dict = {}
+
+        df_keys = []
         for k in list(df.keys()):
+            # raster img is not included in the dataframe, only paths #
+            if 'raster' in k and 'path' not in k:
+                continue
+            df_keys.append(k)
+
+        training_df_dict = {}
+        for k in list(df_keys):
             training_df_dict[k] = []
             
         for i, r in df.iterrows():
-            for k in list(r.keys()):
+            for k in list(df_keys):
                 if any(np_k in k for np_k in numpy_data_keys):
                     if 'current' in k:
                         training_df_dict[k].append(np.array(r[k]))
@@ -66,11 +76,14 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         ##################################
         del_row_idx = []
         for i, r in training_df.iterrows():
-            for k in list(r.keys()):
-                for np_k in numpy_data_keys:
-                    if np_k in k:
+            for k in list(df_keys):
+                if any(np_k in k for np_k in numpy_data_keys):
+                    if 'path' not in k:
                         if np.isnan((r[k]).mean()):
                             del_row_idx.append(i)
 
         training_df = training_df.drop(del_row_idx).reset_index(drop=True)
-        training_df.to_pickle(data_save_dir+'/'+scene_name+".pkl")
+        if data_save_dir is not None:
+            training_df.to_pickle(data_save_dir+'/'+scene_name+".pkl")
+
+        return training_df

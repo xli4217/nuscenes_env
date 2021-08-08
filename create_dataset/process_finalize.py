@@ -12,10 +12,16 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
         token = r.instance_token
 
 
+    current_neighbor_tokens = []
+
     current_neighbor_pos = []
     past_neighbor_pos = []
     future_neighbor_pos = []
-    current_neighbor_tokens = []
+
+    current_neighbor_speed = []
+    past_neighbor_speed = []
+    future_neighbor_speed = []
+    
     for token, dist in zip(r['current_'+name+'_neighbors'][0], r['current_'+name+'_neighbors'][1]):
         if dist < max_neigbhor_range:
             if token == 'ego':
@@ -23,25 +29,50 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
                 r1_name = 'ego'
             else:
                 r1 = sample_df.loc[sample_df.instance_token==token]
+                if r1.shape[0] == 0:
+                    continue
+                r1 = r1.iloc[0]
                 r1_name = 'instance'
                 
-            if r1.shape[0] == 0:
-                continue
+            current_neighbor_tokens.append(token)
+
             current_neighbor_pos.append(r1['current_'+r1_name+'_pos'])
             past_neighbor_pos.append(r1['past_'+r1_name+'_pos'])
             future_neighbor_pos.append(r1['future_'+r1_name+'_pos'])
-            current_neighbor_tokens.append(token)
+
+            if r1_name == 'ego':
+                current_speed = r1['current_'+r1_name+'_speed'][0]
+                past_speed = r1['past_'+r1_name+'_speed'][:,0]
+                future_speed = r1['future_'+r1_name+'_speed'][:,0]
+            else:
+                current_speed = r1['current_'+r1_name+'_speed']
+                past_speed = r1['past_'+r1_name+'_speed']
+                future_speed = r1['future_'+r1_name+'_speed']
+     
+            current_neighbor_speed.append(current_speed)
+            past_neighbor_speed.append(past_speed)
+            future_neighbor_speed.append(future_speed)
+
 
     if len(current_neighbor_pos) == 0:
         return df_dict
-    
-    current_neighbor_pos = np.array(current_neighbor_pos).squeeze()
+
+    current_neighbor_pos = np.array(current_neighbor_pos)
     current_neighbor_pos = process_to_len(current_neighbor_pos, nb_closest_neighbors, 'current_neighbor_pos')
-    past_neighbor_pos = np.array(past_neighbor_pos).squeeze()
+    
+    past_neighbor_pos = np.array(past_neighbor_pos)
     past_neighbor_pos = process_to_len(past_neighbor_pos, nb_closest_neighbors, 'past_neighbor_pos')
-    future_neighbor_pos = np.array(future_neighbor_pos).squeeze()
+    future_neighbor_pos = np.array(future_neighbor_pos)
     future_neighbor_pos = process_to_len(future_neighbor_pos, nb_closest_neighbors, 'future_neighbor_pos')
 
+    current_neighbor_speed = np.array(current_neighbor_speed)
+    current_neighbor_speed = process_to_len(current_neighbor_speed, nb_closest_neighbors, 'current_neighbor_speed')
+    past_neighbor_speed = np.array(past_neighbor_speed)
+    past_neighbor_speed = process_to_len(past_neighbor_speed, nb_closest_neighbors, 'past_neighbor_speed')
+    future_neighbor_speed = np.array(future_neighbor_speed)
+    future_neighbor_speed = process_to_len(future_neighbor_speed, nb_closest_neighbors, 'future_neighbor_speed')
+
+    
     ## populate ##
     #### scene info ####
     df_dict['scene_name'] += [scene_name]
@@ -51,23 +82,35 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
 
     #### agent info ####
     df_dict['agent_token'].append(token)
+
     df_dict['current_agent_pos'].append(r['current_'+name+'_pos'])
     df_dict['past_agent_pos'].append(r['past_'+name+'_pos'])
     df_dict['future_agent_pos'].append(r['future_'+name+'_pos'])
-    df_dict['current_agent_raster'].append(r['current_'+name+'_raster_img'])
-    df_dict['past_agent_raster'].append(r['past_'+name+'_raster_img'])
-    df_dict['future_agent_raster'].append(r['future_'+name+'_raster_img'])
 
+    df_dict['current_agent_speed'].append(r['current_'+name+'_speed'])
+    df_dict['past_agent_speed'].append(r['past_'+name+'_speed'])
+    df_dict['future_agent_speed'].append(r['future_'+name+'_speed'])
+    
+    df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'])
+    df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
+    df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'])
+
+    df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
+    
     df_dict['current_neighbor_pos'].append(current_neighbor_pos)
     df_dict['past_neighbor_pos'].append(past_neighbor_pos)
     df_dict['future_neighbor_pos'].append(future_neighbor_pos)
-    df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
-        
+
+    df_dict['current_neighbor_speed'].append(current_neighbor_speed)
+    df_dict['past_neighbor_speed'].append(past_neighbor_speed)
+    df_dict['future_neighbor_speed'].append(future_neighbor_speed)
+
+    
     return df_dict
     
-def data_processor(df, config={}):
-    nb_closest_neighbors = config['nb_closest_neighbors']
-    max_neigbhor_range = config['max_neighbor_range']
+def final_data_processor(df, config={}):
+    nb_closest_neighbors = config['other_configs']['nb_closest_neighbors']
+    max_neigbhor_range = config['other_configs']['max_neighbor_range']
     
     df_dict = {
         'scene_name': [],            # str
@@ -75,16 +118,29 @@ def data_processor(df, config={}):
         'sample_idx': [],            # int
         'sample_token': [],          # str
         'agent_token': [],           # str
+
         'current_agent_pos':[],      # np.ndarray (2,)
         'past_agent_pos': [],        # np.ndarray(obs_steps, 2)
         'future_agent_pos': [],      # np.ndarray(pred_steps, 2)
-        'current_agent_raster':[],   # np.ndarray(3, 250, 250)
-        'past_agent_raster':[],      # np.ndarray(obs_steps, 3, 250, 250)
-        'future_agent_raster':[],    # np.ndarray(pred_steps, 3, 250, 250)
+
+        'current_agent_speed':[],      # np.ndarray (1,)
+        'past_agent_speed': [],        # np.ndarray(obs_steps, )
+        'future_agent_speed': [],      # np.ndarray(pred_steps, )
+
+        'current_agent_raster_path':[],   # np.ndarray(3, 250, 250)
+        'past_agent_raster_path':[],      # np.ndarray(obs_steps, 3, 250, 250)
+        'future_agent_raster_path':[],    # np.ndarray(pred_steps, 3, 250, 250)
+
+        'current_neighbor_tokens':[], # list (nbr_neighbors)
+        
         'current_neighbor_pos': [],  # np.ndarray(nbr_neighbors, 2)
         'future_neighbor_pos': [],   # np.ndarray(nbr_neighbors, pred_steps, 2)
         'past_neighbor_pos': [],     # np.ndarray(nbr_neighbors, obs_steps, 2)
-        'current_neighbor_tokens':[] # list (nbr_neighbors)
+
+        'current_neighbor_speed': [],  # np.ndarray(nbr_neighbors, )
+        'future_neighbor_speed': [],   # np.ndarray(nbr_neighbors, pred_steps)
+        'past_neighbor_speed': []     # np.ndarray(nbr_neighbors, obs_steps)
+
     }
     
     multi_scene_df = df.set_index(['scene_name', 'sample_idx'])

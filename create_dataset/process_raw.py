@@ -4,7 +4,10 @@ import pandas as pd
 import tqdm
 import copy
 import time
+import matplotlib.pyplot as plt
+from PIL import Image as im
 
+from nuscenes.nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.map_expansion.map_api import NuScenesMap
 
@@ -30,9 +33,16 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
     :returns: one pandas dataframe for each scene
 
     """
-    nusc = ray.get(config['other_configs']['nusc'])
-    helper = ray.get(config['other_configs']['helper'])
-    rasterizer = ray.get(config['other_configs']['rasterizer'])
+
+    if config['num_workers'] == 1:
+        nusc = config['other_configs']['nusc']
+        helper = config['other_configs']['helper']
+        rasterizer = config['other_configs']['rasterizer']
+    else:
+        nusc = ray.get(config['other_configs']['nusc'])
+        helper = ray.get(config['other_configs']['helper'])
+        rasterizer = ray.get(config['other_configs']['rasterizer'])
+        
     dataroot = config['other_configs']['dataroot']
     
     nusc_can = NuScenesCanBus(dataroot=dataroot)
@@ -60,6 +70,7 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
         'current_ego_steering': [],
         'current_ego_on_road_objects':[],
         'current_ego_raster_img':[],
+        'current_ego_raster_img_path': [],
         #### instance info ####
         'annotation_token': [],
         'instance_token': [],
@@ -71,7 +82,8 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
         'current_instance_speed': [],
         'current_instance_accel':[],
         'current_instance_on_road_objects':[],
-        'current_instance_raster_img':[]
+        'current_instance_raster_img':[],
+        'current_instance_raster_img_path': []
     }
 
     #### loop over scenes ####
@@ -83,6 +95,10 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
         scene_log = nusc.get('log', scene['log_token'])
         scene_map = nusc.get('map', scene_log['map_token'])
         nusc_map = NuScenesMap(dataroot=dataroot, map_name=scene_log['location'])
+
+        raster_dir = os.path.join(data_save_dir, scene_name)
+        if not os.path.isdir(raster_dir):
+            os.makedirs(raster_dir)
         
         # can bus information
         if scene_name in NO_CANBUS_SCENES:
@@ -110,6 +126,10 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
 
             # ego raster
             ego_raster = rasterizer.make_input_representation(instance_token=None, sample_token=sample_token, ego=True, ego_pose=ego_pose, include_history=False)
+            ego_rel_path = str(sample_idx) + "_" + 'ego.png'
+            current_ego_raster_img_path = os.path.join(raster_dir, ego_rel_path)
+            ego_raster_png = im.fromarray(ego_raster)
+            ego_raster_png.save(current_ego_raster_img_path)
 
             # ego road objects
             ego_on_road_objects = nusc_map.layers_on_point(ego_pose['translation'][0], ego_pose['translation'][1])
@@ -146,6 +166,7 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
                     scene_df_dict['current_ego_steering'].append(ego_rotation_rate_traj[idx])
                     scene_df_dict['current_ego_on_road_objects'].append(ego_on_road_objects)
                     scene_df_dict['current_ego_raster_img'].append(ego_raster)
+                    scene_df_dict['current_ego_raster_img_path'].append(scene_name+"/"+ego_rel_path)
                     ## instance info ##
                     scene_df_dict['annotation_token'].append(ann_token)
                     scene_df_dict['instance_token'].append(ann['instance_token'])
@@ -163,7 +184,12 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
                     scene_df_dict['current_instance_on_road_objects'].append(instance_on_road_objects)
                     instance_raster = rasterizer.make_input_representation(instance_token=ann['instance_token'], sample_token=sample_token, ego=False, include_history=False)
                     scene_df_dict['current_instance_raster_img'].append(instance_raster)
- 
+                    instance_rel_path = str(sample_idx) + "_"+ann['instance_token']+'.png'
+                    instance_raster_img_path = os.path.join(raster_dir, instance_rel_path)
+                    instance_raster_png = im.fromarray(instance_raster)
+                    instance_raster_png.save(instance_raster_img_path)
+                    scene_df_dict['current_instance_raster_img_path'].append(scene_name+"/"+instance_rel_path)
+                    
             sample_token = sample['next']
             sample = nusc.get('sample', sample_token)
             sample_idx += 1
