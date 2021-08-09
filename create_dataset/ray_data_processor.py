@@ -68,7 +68,8 @@ class RayDataProcessor(object):
                 ray.init()
             else:
                 #ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), redis_max_memory=10**9, object_store_memory=100*10**9)
-                ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
+                ray.init(_temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
+                
             self.process_once_func = ray.remote(class_from_path(self.config['process_once_func']))
             #### initialize nusc ####
             if self.nusc is not None:
