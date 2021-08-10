@@ -101,7 +101,6 @@ def get_config(dataset_type='full',
         # #### Filter data config ####    
         config = {
             'input_data_dir': dir_raw,
-            #'output_data_dir': dir_filter,
             'output_data_dir': dir_final,
             'num_workers': NUM_WORKERS,
             'other_configs':{

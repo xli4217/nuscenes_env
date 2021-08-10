@@ -29,6 +29,7 @@ def render(graphics, render_info, config={}):
             }
 
         #### control plots ####
+        '''
         if 'control_plots' in config['render_elements']:
             fig, ax = plt.subplots(2,1)
             ax[0].plot(list(ap_timesteps), list(ap_speed), 'o-')
@@ -44,10 +45,11 @@ def render(graphics, render_info, config={}):
             if 'image' not in render_info.keys():
                 render_info['image'] = {}
             render_info['image'].update({'cmd': image})
+        '''
 
-
-        if config['save_image_dir'] is not None:
-            save_img_dir = os.path.join(config['save_image_dir'], str(render_info['scene_name']))
+        save_img_dir = None
+        if render_info['save_image_dir'] is not None:
+            save_img_dir = os.path.join(render_info['save_image_dir'], str(render_info['scene_name']))
             if not os.path.exists(save_img_dir):
                 os.makedirs(save_img_dir, exist_ok=True)
                 
@@ -88,7 +90,11 @@ def render(graphics, render_info, config={}):
         if 'human_ego' not in config['render_elements']:
             plot_human_ego = False
 
-        fig, ax = graphics.plot_ego_scene(
+        ego_centric = False
+        if render_info['instance_token'] == 'ego':
+            ego_centric = True
+        
+        fig, ax = graphics.plot_ego_scene( 
             ego_centric=ego_centric,
             sample_token=render_info['sample_token'],
             instance_token=render_info['instance_token'],

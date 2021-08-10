@@ -143,6 +143,14 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         filtered_df['current_ego_neighbors'] = ego_neighbors
         filtered_df['current_instance_neighbors'] = instance_neighbors
 
+        #### filter categories ####
+        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True)
+
+        #### filter attributes ####
+        
+        ### filter scenarios ####
+        filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
+
         ##########################
         # Process type and shape #
         ##########################
@@ -153,7 +161,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         ##########################        
         # TODO: check raster img paths
         filtered_df = final_data_processor(filtered_df, config)
-
+        
         #############
         # Filtering #
         #############
@@ -163,18 +171,10 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #     filtered_df = maneuver_filter(filtered_df)
             
         #### add interactions ####
-        for interaction_name in ['follows', 'yields']:
+        ''' for interaction_name in ['follows', 'yields']:
             filtered_df = interaction_filter(filtered_df, interaction_name)
-
+        '''
         
-        #### filter categories ####
-        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True)
-
-        #### filter attributes ####
-        
-        ### filter scenarios ####
-        filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
-
         
         ##########################
         # save filtered_scene_df #
