@@ -65,6 +65,8 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     future_neighbor_pos = np.array(future_neighbor_pos)
     future_neighbor_pos = process_to_len(future_neighbor_pos, nb_closest_neighbors, 'future_neighbor_pos')
 
+    current_neighbor_tokens = process_to_len(np.array(current_neighbor_tokens), nb_closest_neighbors, 'current_neighbor_tokens').tolist()
+    
     current_neighbor_speed = np.array(current_neighbor_speed)
     current_neighbor_speed = process_to_len(current_neighbor_speed, nb_closest_neighbors, 'current_neighbor_speed')
     past_neighbor_speed = np.array(past_neighbor_speed)
