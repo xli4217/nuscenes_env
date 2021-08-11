@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import collections
+import pandas as pd
 
 from nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
@@ -12,7 +13,7 @@ from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
 
-from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local
+from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local, assert_type_and_shape
 from utils.transformations import *
 
 from celluloid import Camera
@@ -30,7 +31,7 @@ from input_representation.combinators import Rasterizer
 
 from pathlib import Path
 from .env_utils import *
-
+from .env_render import render
 
 class NuScenesDatasetEnv(NuScenesAgent):
 
@@ -38,7 +39,8 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         self.config = {
             'NuScenesAgent_config':{},
-            'data_path': None,
+            'data_dir': None,
+            'raster_dir': None,
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
@@ -65,46 +67,91 @@ class NuScenesDatasetEnv(NuScenesAgent):
             agent_rasterizer = AgentBoxesWithFadedHistory(self.helper, seconds_of_history=2, resolution=0.2)
             self.rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
 
-        #### Initialize ####
-        self.all_info = {}
-        self.reset()
-
-        #### load dataset ####
-        self.dataset = pd.read_pickle(self.config['data_dir'])
         
+        #### available scenes ####
+        self.scene_list = [str(p).split('/')[-1] for p in Path(self.config['data_dir']).rglob('*.pkl')]
+        
+        #### Initialize ####
+        self.all_info = {
+            #### dataset ego ####
+            'ego_pos_gb': None,
+            'ego_quat_gb': None,
+            'ego_pos_traj': None,
+            'ego_speed': None,
+            'ego_raster_image': None,
+            'ego_yaw_rate': None,
+            #### simulated ego ####
+            'sim_ego_pos_gb': None,
+            'sim_ego_quat_gb': None,
+            'sim_ego_pos_traj': None,
+            'sim_ego_speed': None,
+            'sim_ego_raster_image': None,
+            'sim_ego_yaw_rate': None
+        }
+        #self.reset()
+
     def update_all_info(self):
-        pass
-
-    def reset(scene_name=None, instance_token=None):
+        self.update_row(self.instance_token, self.sample_idx)
+        
+        self.all_info['ego_pos_gb'] = self.r.current_agent_pos
+        self.all_info['ego_quat_gb'] = self.r.current_agent_quat
+        self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
+        self.all_info['ego_speed'] = self.r.current_agent_speed
+        self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], self.r.current_agent_raster_path))
+        self.all_info['ego_yaw_rate'] = 0
+    
+        self.all_info['sim_ego_pos_gb'] = self.r.current_agent_pos
+        self.all_info['sim_ego_quat_gb'] = self.r.current_agent_quat
+        self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
+        self.all_info['sim_ego_speed'] = self.r.current_agent_speed
+        self.all_info['sim_ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], self.r.current_agent_raster_path))
+        self.all_info['sim_ego_yaw_rate'] = 0
+    
+    def update_row(self, instance_token, sample_idx):
+        # get the correct row
+        self.r = self.scene_data.loc[self.scene_data.agent_token==instance_token]
+        self.r = self.r[self.r.sample_idx==sample_idx].iloc[0]
+            
+    def reset(self, scene_name=None, instance_token='ego', sample_idx=6):
         if scene_name is None:
-            pass
-
+            scene_idx = np.random.choice(len(self.scene_list))
+            self.scene_name = self.scene_list[scene_idx][:-4]
+        else:
+            self.scene_name = scene_name
+            
+        self.scene_data = pd.read_pickle(os.path.join(self.config['data_dir'], self.scene_name+".pkl"))
+        self.sample_idx = sample_idx
+        self.instance_token = instance_token
+        
+        self.update_all_info()
+        return self.get_observation()
+        
     def get_observation(self):
         return self.all_info
 
-
-    def render(self, render_info={}):
-        render_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
-        render_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
-        render_info['ap_speed'] = self.ap_speed
-        render_info['ap_steering'] = self.ap_steering
-        render_info['ap_timesteps'] = self.ap_timesteps
-        render_info['scene_name'] = self.scene['name']
+    def render(self, render_info={}, save_img_dir=None):
+        render_info['sim_ego_quat_gb'] = self.all_info['sim_ego_quat_gb']
+        render_info['sim_ego_pos_gb'] = self.all_info['sim_ego_pos_gb']
+        render_info['ap_speed'] = None
+        render_info['ap_steering'] = None
+        render_info['ap_timesteps'] = None
+        render_info['scene_name'] = self.scene_name
         render_info['all_info'] = self.all_info
-        render_info['sample_token'] = self.sample['token']
-        render_info['intance_token'] = self.instance_token
+        render_info['sample_token'] = self.r.sample_token
+        render_info['instance_token'] = self.r.agent_token
         render_info['sample_idx'] = self.sample_idx
-
+        render_info['save_image_dir'] = save_img_dir
+        
         return render(self.graphics, render_info, self.config)
 
-    def step(self, action=None, render_info={}):
+    def step(self, action=None, render_info={}, save_img_dir=None):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
-
+        
         #### render ####
         fig, ax = None, None
         if len(self.config['render_type']) > 0:
-            fig, ax = self.render(render_info)
+            fig, ax = self.render(render_info, save_img_dir)
 
         if action is None:
             self.sim_ego_pos_gb = self.all_info['ego_pos_gb']

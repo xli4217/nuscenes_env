@@ -61,7 +61,7 @@ def rollout(scene_name=None,
 
         #### record scene_info ####
         # scene_info = populate_scene_info(scene_info, obs, policy)
-
+        
         #### one step ####
         obs, done, other = env.step(action, render_info, save_img_dir=scene_image_dir)
 

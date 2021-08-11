@@ -1,3 +1,4 @@
+import ipdb
 import pandas as pd
 from utils.utils import assert_shape, process_to_len
 import tqdm
@@ -22,19 +23,19 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     past_neighbor_speed = []
     future_neighbor_speed = []
     
-    for token, dist in zip(r['current_'+name+'_neighbors'][0], r['current_'+name+'_neighbors'][1]):
+    for atoken, dist in zip(r['current_'+name+'_neighbors'][0], r['current_'+name+'_neighbors'][1]):
         if dist < max_neigbhor_range:
-            if token == 'ego':
+            if atoken == 'ego':
                 r1 = sample_df.iloc[0]
                 r1_name = 'ego'
             else:
-                r1 = sample_df.loc[sample_df.instance_token==token]
+                r1 = sample_df.loc[sample_df.instance_token==atoken]
                 if r1.shape[0] == 0:
                     continue
                 r1 = r1.iloc[0]
                 r1_name = 'instance'
                 
-            current_neighbor_tokens.append(token)
+            current_neighbor_tokens.append(atoken)
 
             current_neighbor_pos.append(r1['current_'+r1_name+'_pos'])
             past_neighbor_pos.append(r1['past_'+r1_name+'_pos'])
@@ -77,25 +78,29 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     
     ## populate ##
     #### scene info ####
-    df_dict['scene_name'] += [scene_name]
-    df_dict['scene_token'] += [r.scene_token]
-    df_dict['sample_idx'] += [sample_idx]
-    df_dict['sample_token'] += [r.sample_token]
+    df_dict['scene_name'].append(str(scene_name))
+    df_dict['scene_token'].append(str(r.scene_token))
+    df_dict['sample_idx'].append(int(sample_idx))
+    df_dict['sample_token'].append(str(r.sample_token))
 
     #### agent info ####
     df_dict['agent_token'].append(token)
 
-    df_dict['current_agent_pos'].append(r['current_'+name+'_pos'])
-    df_dict['past_agent_pos'].append(r['past_'+name+'_pos'])
-    df_dict['future_agent_pos'].append(r['future_'+name+'_pos'])
+    df_dict['current_agent_pos'].append(r['current_'+name+'_pos'])[:2]
+    df_dict['past_agent_pos'].append(r['past_'+name+'_pos'])[:,:2]
+    df_dict['future_agent_pos'].append(r['future_'+name+'_pos'])[:,:2]
+
+    df_dict['current_agent_quat'].append(r['current_'+name+'_quat'])
+    df_dict['past_agent_quat'].append(r['past_'+name+'_quat'])
+    df_dict['future_agent_quat'].append(r['future_'+name+'_quat'])
 
     df_dict['current_agent_speed'].append(r['current_'+name+'_speed'])
     df_dict['past_agent_speed'].append(r['past_'+name+'_speed'])
     df_dict['future_agent_speed'].append(r['future_'+name+'_speed'])
     
-    df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'])
-    df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
-    df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'])
+    df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'].tolist())
+    df_dict['past_agent_raster_path'].append(str(r['past_'+name+'_raster_img_path']))
+    df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'].tolist())
 
     df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
     
@@ -125,13 +130,17 @@ def final_data_processor(df, config={}):
         'past_agent_pos': [],        # np.ndarray(obs_steps, 2)
         'future_agent_pos': [],      # np.ndarray(pred_steps, 2)
 
+        'current_agent_quat':[],      # np.ndarray (4,)
+        'past_agent_quat': [],        # np.ndarray(obs_steps, 4)
+        'future_agent_quat': [],      # np.ndarray(pred_steps, 4)
+
         'current_agent_speed':[],      # np.ndarray (1,)
         'past_agent_speed': [],        # np.ndarray(obs_steps, )
         'future_agent_speed': [],      # np.ndarray(pred_steps, )
 
-        'current_agent_raster_path':[],   # np.ndarray(3, 250, 250)
-        'past_agent_raster_path':[],      # np.ndarray(obs_steps, 3, 250, 250)
-        'future_agent_raster_path':[],    # np.ndarray(pred_steps, 3, 250, 250)
+        'current_agent_raster_path':[],   # str
+        'past_agent_raster_path':[],      # list[str]
+        'future_agent_raster_path':[],    # list[str]
 
         'current_neighbor_tokens':[], # list (nbr_neighbors)
         
@@ -170,7 +179,6 @@ def final_data_processor(df, config={}):
                                   max_neigbhor_range=max_neigbhor_range)
             
     df = pd.DataFrame(df_dict)
-    
     return df
 
 def train_val_split_filter(df, config={}):

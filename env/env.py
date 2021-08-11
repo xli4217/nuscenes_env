@@ -315,9 +315,6 @@ class NuScenesEnv(NuScenesAgent):
         return filtered_agent_info
 
     def render(self, render_info={}, save_img_dir=None):
-        if save_img_dir is not None:
-            self.config['save_image_dir'] = save_img_dir
-
         render_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         render_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         render_info['ap_speed'] = None #self.ap_speed
@@ -328,7 +325,8 @@ class NuScenesEnv(NuScenesAgent):
         render_info['sample_token'] = self.sample['token']
         render_info['instance_token'] = self.instance_token
         render_info['sample_idx'] = self.sample_idx
-
+        render_info['save_img_dir'] = save_img_dir
+    
         return render(self.graphics, render_info, self.config)
         
     def step(self, action:np.ndarray=None, render_info={}, save_img_dir=None):

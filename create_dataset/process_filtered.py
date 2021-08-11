@@ -154,7 +154,6 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         ### filter scenarios ####
         filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
 
-        
         ##########################
         # Process type and shape #
         ##########################
@@ -169,13 +168,15 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         ##################################
         # Add Maneuvers And Interactions #
         ##################################
-
         #### add maneuvers ####
         # for maneuver_name, maneuver_filter in maneuver_filters.items():
         #     filtered_df = maneuver_filter(filtered_df)
             
         #### add interactions ####
-        filtered_df = interaction_filter(filtered_df)
+        ''' for interaction_name in ['follows', 'yields']:
+            filtered_df = interaction_filter(filtered_df, interaction_name)
+        '''
+        
         
         ##########################
         # save filtered_scene_df #
