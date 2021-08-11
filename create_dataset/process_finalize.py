@@ -75,7 +75,7 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     future_neighbor_speed = np.array(future_neighbor_speed)
     future_neighbor_speed = process_to_len(future_neighbor_speed, nb_closest_neighbors, 'future_neighbor_speed')
 
-    
+
     ## populate ##
     #### scene info ####
     df_dict['scene_name'].append(str(scene_name))
@@ -86,9 +86,9 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     #### agent info ####
     df_dict['agent_token'].append(token)
 
-    df_dict['current_agent_pos'].append(r['current_'+name+'_pos'])[:2]
-    df_dict['past_agent_pos'].append(r['past_'+name+'_pos'])[:,:2]
-    df_dict['future_agent_pos'].append(r['future_'+name+'_pos'])[:,:2]
+    df_dict['current_agent_pos'].append(r['current_'+name+'_pos'][:2])
+    df_dict['past_agent_pos'].append(r['past_'+name+'_pos'][:,:2])
+    df_dict['future_agent_pos'].append(r['future_'+name+'_pos'][:,:2])
 
     df_dict['current_agent_quat'].append(r['current_'+name+'_quat'])
     df_dict['past_agent_quat'].append(r['past_'+name+'_quat'])

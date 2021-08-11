@@ -107,12 +107,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], self.r.current_agent_raster_path))
         self.all_info['sim_ego_yaw_rate'] = 0
     
-    def update_row(self, instance_token, sample_idx):
+    def update_row(self, instance_token, sample_idx=None):
         # get the correct row
-        self.r = self.scene_data.loc[self.scene_data.agent_token==instance_token]
-        self.r = self.r[self.r.sample_idx==sample_idx].iloc[0]
+        self.r = self.instance_df[self.instance_df.sample_idx==sample_idx].iloc[0]
             
-    def reset(self, scene_name=None, instance_token='ego', sample_idx=6):
+    def reset(self, scene_name=None, instance_token='ego', sample_idx=None):
         if scene_name is None:
             scene_idx = np.random.choice(len(self.scene_list))
             self.scene_name = self.scene_list[scene_idx][:-4]
@@ -120,9 +119,17 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.scene_name = scene_name
             
         self.scene_data = pd.read_pickle(os.path.join(self.config['data_dir'], self.scene_name+".pkl"))
-        self.sample_idx = sample_idx
         self.instance_token = instance_token
-        
+    
+        self.instance_df = self.scene_data.loc[self.scene_data.agent_token==instance_token]
+        self.instance_sample_idx_list = self.instance_df.sample_idx.tolist()
+        if sample_idx is not None:
+            self.df_idx = np.argmin(abs(np.array(self.instance_sample_idx_list) - sample_idx))
+            self.sample_idx = sample_idx
+        else:
+            self.df_idx = 0
+            self.sample_idx = self.instance_sample_idx_list[self.df_idx]
+            
         self.update_all_info()
         return self.get_observation()
         
@@ -130,6 +137,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
         return self.all_info
 
     def render(self, render_info={}, save_img_dir=None):
+        def plot_text_box(ax, text_string:str, pos: np.ndarray, facecolor: str='wheat'):
+            props = dict(boxstyle='round', facecolor=facecolor, alpha=0.5)
+            ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props)
+        
+            
         render_info['sim_ego_quat_gb'] = self.all_info['sim_ego_quat_gb']
         render_info['sim_ego_pos_gb'] = self.all_info['sim_ego_pos_gb']
         render_info['ap_speed'] = None
@@ -142,7 +154,52 @@ class NuScenesDatasetEnv(NuScenesAgent):
         render_info['sample_idx'] = self.sample_idx
         render_info['save_image_dir'] = save_img_dir
         
-        return render(self.graphics, render_info, self.config)
+        
+        fig, ax =  render(self.graphics, render_info, self.config)
+        
+        #####################
+        # Plot GroundTruths #
+        #####################
+        sim_ego_pos = self.all_info['sim_ego_pos_gb']
+        #### plot neighbor connection lines ####
+        for n_past, n_current, n_future in zip(self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
+            # plot connection lines to n_current
+            ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
+            # plot ado past #
+            ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
+            # plot ado future #
+            ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
+        
+        #### plot ado instance tokens ####
+        for i, instance_token in enumerate(self.r.current_neighbor_tokens):
+            plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.2]), facecolor='red')        
+        
+        #### plot interaction labels ####
+        agent_height_dict = {}
+        for agent_i_interactions in self.r.current_interactions:
+            for interaction in agent_i_interactions:
+                a1_token, interaction_name, a2_token = interaction
+                if a1_token not in list(agent_height_dict.keys()):
+                    agent_height_dict[a1_token] = np.array([0, 2.4])
+                else:
+                    agent_height_dict[a1_token] += 2
+                if a1_token == 'ego':
+                  a1_pos = self.r.current_agent_pos[:2]
+                else:
+                    idx = self.r.current_neighbor_tokens.index(a1_token)
+                    a1_pos = self.r.current_neighbor_pos[idx][:2]
+                
+                plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
+                
+        
+        ####################   
+        # plot predictions #
+        ####################
+        if 'predictions' in list(render_info.keys()):
+            pass
+        
+        plt.show()                
+        return fig, ax
 
     def step(self, action=None, render_info={}, save_img_dir=None):
         if self.py_logger is not None:
@@ -178,9 +235,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.sim_ego_quat_gb = [q[0], q[1], q[2], q[3]]
 
 
-        self.sample_idx += 1
+        self.df_idx += 1
         self.update_all_info()
         done = False
+        if self.df_idx >= len(self.instance_sample_idx_list):
+            done = True
         other = {
             'render_ax': ax
         }

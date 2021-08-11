@@ -173,9 +173,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #     filtered_df = maneuver_filter(filtered_df)
             
         #### add interactions ####
-        ''' for interaction_name in ['follows', 'yields']:
-            filtered_df = interaction_filter(filtered_df, interaction_name)
-        '''
+        filtered_df = interaction_filter(filtered_df)
         
         
         ##########################

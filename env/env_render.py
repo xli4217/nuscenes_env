@@ -110,6 +110,5 @@ def render(graphics, render_info, config={}):
             plot_human_ego=plot_human_ego,
             patch_margin=config['patch_margin'],
         )
-        plt.show()
 
         return fig, ax

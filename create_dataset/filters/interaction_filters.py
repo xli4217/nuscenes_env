@@ -1,7 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 from utils.utils import process_to_len, assert_type_and_shape
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, Polygon, Point
 
 #######################
 # Filtering Functions #
@@ -201,7 +201,7 @@ def interaction_filter(scene_df):
             # loop through any two agents in the neighborhood #
             for i , n1_token in enumerate(all_tokens):
                 for j, n2_token in enumerate(all_tokens):
-                    if i != j:
+                    if i != j and n1_token != n2_token:
                         a1 = agents_traj_dict[n1_token]
                         a2 = agents_traj_dict[n2_token]
                         # loop through all interaction types
@@ -221,8 +221,8 @@ def interaction_filter(scene_df):
                             else:
                                 raise ValueError()
 
-                            has_interaction = interaction_func(a1['pos'][t:], a1['speed'][t:],
-                                                               a2['pos'][t:], a2['speed'][t:],
+                            has_interaction = interaction_func(a1['pos'][t:][:,:2], a1['speed'][t:],
+                                                               a2['pos'][t:][:,:2], a2['speed'][t:],
                                                                params)
                             if has_interaction:
                                 interactions.append((n1_token, interaction_name, n2_token))
