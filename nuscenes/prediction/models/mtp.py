@@ -109,7 +109,7 @@ class MTP(nn.Module):
         return torch.cat((predictions, mode_probabilities), 1)
 
 
-class MTPLoss:
+class MTPLoss(object):
     """ Computes the loss for the MTP model. """
 
     def __init__(self,
