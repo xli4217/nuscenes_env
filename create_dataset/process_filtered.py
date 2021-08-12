@@ -80,8 +80,8 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 if 'ego' in key:
                     #### populate ego traj ####                    
                     ego_traj_dict[key[8:]+"_traj"] = unique(df[key].tolist(), key)
-
-        #### populate instance traj ####
+                    
+       #### populate instance traj ####
         for instance_token in df.instance_token.unique().tolist():
             instance_df = df.loc[df.instance_token.str.contains(instance_token)]
 
@@ -89,7 +89,6 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
             for k in list(instance_df.keys()):
                 if 'current_instance' in k:
                     instance_tmp_dict[k[8:]+"_traj"] = instance_df[k].tolist()
-                        
             instance_traj_dict[instance_token] = instance_tmp_dict
 
                 
@@ -103,13 +102,12 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 if 'current_ego' in k:
                     filtered_df_dict['past_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][sample_idx+1:])
-
+                    
                 if 'current_instance' in k:
                     filtered_df_dict['past_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:])
-                    
         filtered_df = pd.DataFrame(filtered_df_dict)
-
+        
         #########################
         # Add nearest neighbors #
         #########################
@@ -158,13 +156,13 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         # Process type and shape #
         ##########################
         filtered_df = process_type_and_shape_once([filtered_df], config=config)
-
+        
         ##########################
         # Normalize And Finalize #
         ##########################        
         # TODO: check raster img paths
         filtered_df = final_data_processor(filtered_df, config)
-
+        
         ##################################
         # Add Maneuvers And Interactions #
         ##################################
@@ -174,8 +172,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
             
         #### add interactions ####
         filtered_df = interaction_filter(filtered_df)
-        
-        
+                
         ##########################
         # save filtered_scene_df #
         ##########################

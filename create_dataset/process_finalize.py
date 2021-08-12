@@ -98,9 +98,9 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict['past_agent_speed'].append(r['past_'+name+'_speed'])
     df_dict['future_agent_speed'].append(r['future_'+name+'_speed'])
     
-    df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'].tolist())
-    df_dict['past_agent_raster_path'].append(str(r['past_'+name+'_raster_img_path']))
-    df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'].tolist())
+    df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'])
+    df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
+    df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'])
 
     df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
     
@@ -180,50 +180,4 @@ def final_data_processor(df, config={}):
             
     df = pd.DataFrame(df_dict)
     return df
-
-def train_val_split_filter(df, config={}):
-    train_df = df.iloc[:int(0.7*df.shape[0])]
-    val_df = df.iloc[int(0.7*df.shape[0]):]
-
-    return train_df, val_df
-    # df = df.sample(frac=1).reset_index(drop=True)
-        
-    # straight_df = []
-    # left_df = []
-    # right_df = []
-
-    # for i, r in df.iterrows():
-    #     if r.current_ego_maneuvers == 0:
-    #         straight_df.append(r)
-    #     if r.current_ego_maneuvers == 1:
-    #         left_df.append(r)
-    #     if r.current_ego_maneuvers == 2:
-    #         right_df.append(r)
-
-    # min_nbr_rows = min(len(straight_df), len(left_df), len(right_df))
-
-    # straight_df = pd.DataFrame(straight_df).iloc[:min_nbr_rows]
-    # left_df = pd.DataFrame(left_df).iloc[:min_nbr_rows]
-    # right_df = pd.DataFrame(right_df)[:min_nbr_rows]
-
-    # print(f"straight size is {straight_df.shape}")
-    # print(f"left size is {left_df.shape}")
-    # print(f"right size is {right_df.shape}")
-    # print(f"taken size is {min_nbr_rows}")
-
-    # train_straight_df = straight_df.iloc[:int(0.7*straight_df.shape[0])]
-    # val_straight_df = straight_df.iloc[int(0.7*straight_df.shape[0]):]
-    
-    # train_left_df = left_df.iloc[:int(0.7*left_df.shape[0])]
-    # val_left_df = left_df.iloc[int(0.7*left_df.shape[0]):]
-    
-    # train_right_df = right_df.iloc[:int(0.7*right_df.shape[0])]
-    # val_right_df = right_df.iloc[int(0.7*right_df.shape[0]):]
-
-    # train_df = pd.concat([train_straight_df, train_left_df, train_right_df])
-    # val_df = pd.concat([val_straight_df, val_left_df, val_right_df])
-
-        
-    # return train_df, val_df
-
 

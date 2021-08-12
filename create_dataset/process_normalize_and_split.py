@@ -1,7 +1,9 @@
+import os
 import numpy as np
 from numpy.lib.financial import ipmt
 import pandas as pd
 import cloudpickle
+from PIL import Image
 
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -11,10 +13,11 @@ import tqdm
 class ProcessDatasetSplit(object):
     def __init__(self, config={}):
         self.config = {
-            'training_data_dir': "",
+            'input_data_dir': "",
             'save_dir': "",
             # key is column name in the dataframe, value is normalized range (to [0, value])
-            'normalize_elements': {'current_ego_speed': 1, 'current_ego_steering': 2},
+            # 'normalize_elements': {'current_ego_speed': 1, 'current_ego_steering': 2},
+            'normalize_elements': {},
             'train_val_split_filter': {
                 'type': None,
                 'config': {}
@@ -35,7 +38,7 @@ class ProcessDatasetSplit(object):
             self.additional_processor = class_from_path(self.config['additional_processor']['type'])
     
         
-        self.final_data_fn = [str(p) for p in Path(self.config['training_data_dir']).rglob('*.pkl')]
+        self.final_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
 
         df_list = []
         for p in self.final_data_fn:
@@ -59,7 +62,11 @@ class ProcessDatasetSplit(object):
                 df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
                    
         # save image mean and variance for normalization #
-        raster = np.array(df.current_agent_raster.tolist())
+        #raster = np.array(df.current_agent_raster.tolist())
+        
+        raster_paths = [str(p) for p in df.current_agent_raster_path.tolist()]
+        raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], p))) for p in raster_paths])
+        raster = np.transpose(raster, (0, 3, 1, 2))
         data_size, channels, w, h = raster.shape
         raster = raster.reshape(data_size, channels, w*h)
         raster = np.transpose(raster, (1,2,0))
