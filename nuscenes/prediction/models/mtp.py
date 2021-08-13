@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torch.nn import functional as f
 
-from external_libs.nuscenes.prediction.models.backbone import calculate_backbone_feature_dim
+from nuscenes.prediction.models.backbone import calculate_backbone_feature_dim
 
 # Number of entries in Agent State Vector
 ASV_DIM = 3
