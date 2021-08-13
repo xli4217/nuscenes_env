@@ -97,14 +97,15 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         self.all_info['ego_speed'] = self.r.current_agent_speed
-        self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], self.r.current_agent_raster_path))
+
+        self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = 0
     
         self.all_info['sim_ego_pos_gb'] = self.r.current_agent_pos
         self.all_info['sim_ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         self.all_info['sim_ego_speed'] = self.r.current_agent_speed
-        self.all_info['sim_ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], self.r.current_agent_raster_path))
+        self.all_info['sim_ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['sim_ego_yaw_rate'] = 0
     
     def update_row(self, instance_token, sample_idx=None):
@@ -139,7 +140,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
     def render(self, render_info={}, save_img_dir=None):
         def plot_text_box(ax, text_string:str, pos: np.ndarray, facecolor: str='wheat'):
             props = dict(boxstyle='round', facecolor=facecolor, alpha=0.5)
-            ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props)
+            ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props, zorder=800)
         
             
         render_info['sim_ego_quat_gb'] = self.all_info['sim_ego_quat_gb']
@@ -169,6 +170,13 @@ class NuScenesDatasetEnv(NuScenesAgent):
             ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
             # plot ado future #
             ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
+
+        # plot ego past #
+        ax.scatter(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], c='grey', s=20, zorder=400)
+
+        # plot ego future #
+        ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=400)
+
         
         #### plot ado instance tokens ####
         for i, instance_token in enumerate(self.r.current_neighbor_tokens):
@@ -198,7 +206,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if 'predictions' in list(render_info.keys()):
             pass
         
-        plt.show()                
         return fig, ax
 
     def step(self, action=None, render_info={}, save_img_dir=None):

@@ -59,12 +59,21 @@ class ProcessDatasetSplit(object):
                 element = np.array(df[k].tolist())
                 element_min = element.min()
                 element_max = element.max()
-                element_min_max[k] = {'min': element_min, 'max': element_max, 'upper_bound':v}
-                df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
-                   
+                element_mean = element.mean()
+                element_std = element.std()
+
+                element_min_max[k] = {
+                    'min': element_min,
+                    'max': element_max,
+                    'mean': element_mean,
+                    'std': element_std,
+                    'scale':v
+                }
+                #df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
+                df = df.apply(lambda x: v*(x-element_mean)/element_std if x.name == k else x)
+
+
         # save image mean and variance for normalization #
-        #raster = np.array(df.current_agent_raster.tolist())
-        
         raster_paths = [str(p) for p in df.current_agent_raster_path.tolist()]
         raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], p))) for p in raster_paths])
         raster = np.transpose(raster, (0, 3, 1, 2))

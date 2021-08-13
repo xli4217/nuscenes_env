@@ -139,6 +139,7 @@ class MTPLoss(object):
         """
         mode_probabilities = model_prediction[:, -self.num_modes:].clone()
 
+        print(mode_probabilities)
         desired_shape = (model_prediction.shape[0], self.num_modes, -1, self.num_location_coordinates_predicted)
         trajectories_no_modes = model_prediction[:, :-self.num_modes].clone().reshape(desired_shape)
 
