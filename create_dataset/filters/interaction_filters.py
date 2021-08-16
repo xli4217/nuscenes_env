@@ -181,7 +181,7 @@ def interaction_filter(scene_df):
         agents_traj_dict = {
             r.agent_token: {
                 'pos': np.vstack([r.past_agent_pos, r.current_agent_pos[np.newaxis], r.future_agent_pos]),
-                'speed': np.concatenate([r.past_agent_speed, np.array([r.current_agent_speed]), r.future_agent_speed])
+                'speed': np.concatenate([r.past_agent_speed, r.current_agent_speed, r.future_agent_speed])
             }
         }
 

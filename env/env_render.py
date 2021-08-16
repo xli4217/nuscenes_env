@@ -93,7 +93,7 @@ def render(graphics, render_info, config={}):
         ego_centric = False
         if render_info['instance_token'] == 'ego':
             ego_centric = True
-        
+
         fig, ax = graphics.plot_ego_scene( 
             ego_centric=ego_centric,
             sample_token=render_info['sample_token'],

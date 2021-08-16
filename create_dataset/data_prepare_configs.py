@@ -18,7 +18,7 @@ def set_dir(data_root_dir=None, test=False):
     else:
         test_dir = ''
         
-    dir_raw = os.path.join(data_root_dir, 'raw', 'scene_df', test_dir)
+    dir_raw = os.path.join(data_root_dir, 'raw', 'scene_df', test_dir, 'pkl')
     if not os.path.isdir(dir_raw):
         os.makedirs(dir_raw)
 
@@ -30,7 +30,7 @@ def set_dir(data_root_dir=None, test=False):
     if not os.path.isdir(dir_training):
         os.makedirs(dir_training)
 
-    dir_final = os.path.join(data_root_dir, 'final')
+    dir_final = os.path.join(data_root_dir, 'final', test_dir)
     if not os.path.isdir(dir_final):
         os.makedirs(dir_final)
 

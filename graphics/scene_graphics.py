@@ -211,8 +211,7 @@ class SceneGraphics(NuScenesAgent):
                                                render_additional=render_additional,
                                                plot_human_ego=plot_human_ego,
                                                patch_margin=patch_margin,
-                                               sim_ego_pose=sim_ego_pose
-        )
+                                               sim_ego_pose=sim_ego_pose)
 
 
 
@@ -307,10 +306,6 @@ class SceneGraphics(NuScenesAgent):
         min_diff_patch = 30
 
         if not ego_centric:
-            # if sensor_info is not None:
-            #     agent_future = sensor_info['agent_info']['current_agent']['future']
-            #     agent_past = sensor_info['agent_info']['current_agent']['past']
-            # else:
             agent_future = self.helper.get_future_for_agent(instance_token,
                                                             sample_token,
                                                             self.na_config['pred_horizon'],
@@ -323,19 +318,32 @@ class SceneGraphics(NuScenesAgent):
                                                         in_agent_frame=False,
                                                         just_xy=True)
 
+
+
             #### set plot patch ####
+            if agent_future.shape[0] > 0:
+                p = agent_future[0]
+            else:
+                p = agent_past[-1]
 
-            min_patch = np.floor(agent_future.min(axis=0) - patch_margin)
-            max_patch = np.ceil(agent_future.max(axis=0) + patch_margin)
-            diff_patch = max_patch - min_patch
+            my_patch = (
+                p[0]-patch_margin,
+                p[1]-patch_margin,
+                p[0]+patch_margin,
+                p[1]+patch_margin,
+            )
 
-            if any(diff_patch < min_diff_patch):
-                center_patch = (min_patch + max_patch) / 2
-                diff_patch = np.maximum(diff_patch, min_diff_patch)
-                min_patch = center_patch - diff_patch / 2
-                max_patch = center_patch + diff_patch / 2
-            my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
+            # min_patch = np.floor(agent_future.min(axis=0) - patch_margin)
+            # max_patch = np.ceil(agent_future.max(axis=0) + patch_margin)
+            # diff_patch = max_patch - min_patch
 
+            # if any(diff_patch < min_diff_patch):
+            #     center_patch = (min_patch + max_patch) / 2
+            #     diff_patch = np.maximum(diff_patch, min_diff_patch)
+            #     min_patch = center_patch - diff_patch / 2
+            #     max_patch = center_patch + diff_patch / 2
+            # my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
+            
         else:
             sample_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT'])
             ego_pose = self.nusc.get('ego_pose', sample_data['ego_pose_token'])

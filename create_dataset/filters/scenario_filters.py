@@ -27,6 +27,6 @@ def scenario_filter(scene_df, keep_senarios=[]):
                         continue
                         
     #filtered_df = scene_df.drop(del_idx).reset_index(drop=True)
-    filtered_df = scene_df[scene_df.instance_token.str.contains('|'.join(keep_instance_token_list))].reset_index(drop=True)
+    filtered_df = scene_df[scene_df.instance_token.str.contains('|'.join(keep_instance_token_list))]
     return filtered_df
     

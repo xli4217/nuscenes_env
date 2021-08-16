@@ -145,23 +145,32 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         # Filtering #
         #############
         #### filter categories ####
-        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True)
+        filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True, inplace=True)
 
         #### filter attributes ####
         
         ### filter scenarios ####
         filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
-
+        if filtered_df is None:
+            return None
+        filtered_df.reset_index(drop=True, inplace=True)
+        
         ##########################
         # Process type and shape #
         ##########################
         filtered_df = process_type_and_shape_once([filtered_df], config=config)
+        if filtered_df is None:
+            return None
+        filtered_df.reset_index(drop=True, inplace=True)
         
         ##########################
         # Normalize And Finalize #
         ##########################        
         # TODO: check raster img paths
         filtered_df = final_data_processor(filtered_df, config)
+        if filtered_df is None:
+            return None
+        filtered_df.reset_index(drop=True, inplace=True)
         
         ##################################
         # Add Maneuvers And Interactions #
@@ -172,7 +181,8 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
             
         #### add interactions ####
         filtered_df = interaction_filter(filtered_df)
-                
+        filtered_df.reset_index(drop=True, inplace=True)
+        
         ##########################
         # save filtered_scene_df #
         ##########################

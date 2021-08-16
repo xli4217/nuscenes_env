@@ -55,23 +55,20 @@ class ProcessDatasetSplit(object):
         element_min_max = {}
         for k, v in normalize_elements.items():
             if 'img' not in k:
-                df['origin_'+k] = df[k]
+                # df['origin_'+k] = df[k]
                 element = np.array(df[k].tolist())
-                element_min = element.min()
-                element_max = element.max()
-                element_mean = element.mean()
-                element_std = element.std()
-
+                element = element.reshape(-1, element.shape[-1])
+                
                 element_min_max[k] = {
-                    'min': element_min,
-                    'max': element_max,
-                    'mean': element_mean,
-                    'std': element_std,
+                    'min': np.min(element, axis=0),
+                    'max': np.max(element, axis=0),
+                    'mean': np.mean(element, axis=0),
+                    'std': np.std(element, axis=0),
                     'scale':v
                 }
-                #df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
-                df = df.apply(lambda x: v*(x-element_mean)/element_std if x.name == k else x)
 
+                #df = df.apply(lambda x: v*(x-element_min)/(element_max-element_min) if x.name == k else x)
+                # df = df.apply(lambda x: v*(x-element_mean)/element_std if x.name == k else x)
 
         # save image mean and variance for normalization #
         raster_paths = [str(p) for p in df.current_agent_raster_path.tolist()]
@@ -100,10 +97,17 @@ class ProcessDatasetSplit(object):
         train_df, val_df = self.create_train_val_split(df)
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")
+
+        mini_train_df = train_df.iloc[:300,:]
+        mini_val_df = val_df.iloc[:70,:]
         
         train_df.to_pickle(self.config['save_dir']+"/train.pkl")
         val_df.to_pickle(self.config['save_dir']+"/val.pkl")
 
+        mini_train_df.to_pickle(self.config['save_dir']+"/mini_train.pkl")
+        mini_val_df.to_pickle(self.config['save_dir']+"/mini_val.pkl")
+
+        
     def create_train_val_split(self, df):
         normalized_df = self.normalize(df, normalize_elements=self.config['normalize_elements'])
         train_df, val_df = self.train_val_split_filter(normalized_df, self.config['train_val_split_filter']['config'])

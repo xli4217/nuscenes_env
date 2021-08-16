@@ -91,6 +91,9 @@ class NuScenesDatasetEnv(NuScenesAgent):
         #self.reset()
 
     def update_all_info(self):
+        self.sample_idx = self.instance_sample_idx_list[self.df_idx]
+        self.sample_token = self.instance_sample_token_list[self.df_idx]
+
         self.update_row(self.instance_token, self.sample_idx)
         
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
@@ -112,7 +115,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         # get the correct row
         self.r = self.instance_df[self.instance_df.sample_idx==sample_idx].iloc[0]
             
-    def reset(self, scene_name=None, instance_token='ego', sample_idx=None):
+    def reset(self, scene_name=None, instance_token='ego', sample_token=None,  sample_idx=None):
         if scene_name is None:
             scene_idx = np.random.choice(len(self.scene_list))
             self.scene_name = self.scene_list[scene_idx][:-4]
@@ -124,13 +127,15 @@ class NuScenesDatasetEnv(NuScenesAgent):
     
         self.instance_df = self.scene_data.loc[self.scene_data.agent_token==instance_token]
         self.instance_sample_idx_list = self.instance_df.sample_idx.tolist()
+        self.instance_sample_token_list = self.instance_df.sample_token.tolist()
+        
         if sample_idx is not None:
             self.df_idx = np.argmin(abs(np.array(self.instance_sample_idx_list) - sample_idx))
             self.sample_idx = sample_idx
         else:
             self.df_idx = 0
             self.sample_idx = self.instance_sample_idx_list[self.df_idx]
-            
+
         self.update_all_info()
         return self.get_observation()
         
@@ -142,7 +147,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
             props = dict(boxstyle='round', facecolor=facecolor, alpha=0.5)
             ax.text(pos[0], pos[1], text_string, fontsize=10, bbox=props, zorder=800)
         
-            
         render_info['sim_ego_quat_gb'] = self.all_info['sim_ego_quat_gb']
         render_info['sim_ego_pos_gb'] = self.all_info['sim_ego_pos_gb']
         render_info['ap_speed'] = None
@@ -154,8 +158,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         render_info['instance_token'] = self.r.agent_token
         render_info['sample_idx'] = self.sample_idx
         render_info['save_image_dir'] = save_img_dir
-        
-        
+
         fig, ax =  render(self.graphics, render_info, self.config)
         
         #####################
@@ -177,8 +180,8 @@ class NuScenesDatasetEnv(NuScenesAgent):
         # plot ego future #
         ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=400)
 
-        
         #### plot ado instance tokens ####
+        plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.2]), facecolor='red')
         for i, instance_token in enumerate(self.r.current_neighbor_tokens):
             plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.2]), facecolor='red')        
         

@@ -1,8 +1,9 @@
 import ipdb
 import pandas as pd
-from utils.utils import assert_shape, process_to_len
+from utils.utils import process_to_len, populate_dictionary
 import tqdm
 import numpy as np
+from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local
 
 def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_closest_neighbors=4, max_neigbhor_range=40):
     if ego_or_ado == 'ego':
@@ -12,7 +13,17 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
         name = 'instance'
         token = r.instance_token
 
+    #### filter data ####
+    violating_conditions = [
+        # no future data for agent
+        np.linalg.norm(r['future_'+name+'_pos']) < 0.01
+    ]
+    if any(violating_conditions):
+        return df_dict
 
+    obs_steps = r.past_ego_pos.shape[0]
+    pred_steps = r.future_ego_pos.shape[0]
+        
     current_neighbor_tokens = []
 
     current_neighbor_pos = []
@@ -73,9 +84,8 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     past_neighbor_speed = np.array(past_neighbor_speed)
     past_neighbor_speed = process_to_len(past_neighbor_speed, nb_closest_neighbors, 'past_neighbor_speed')
     future_neighbor_speed = np.array(future_neighbor_speed)
-    future_neighbor_speed = process_to_len(future_neighbor_speed, nb_closest_neighbors, 'future_neighbor_speed')
-
-
+    future_neighbor_speed = process_to_len(future_neighbor_speed, nb_closest_neighbors, 'future_neighbor_speed')        
+    
     ## populate ##
     #### scene info ####
     df_dict['scene_name'].append(str(scene_name))
@@ -83,34 +93,43 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict['sample_idx'].append(int(sample_idx))
     df_dict['sample_token'].append(str(r.sample_token))
 
-    #### agent info ####
+    # #### agent info ####
     df_dict['agent_token'].append(token)
 
-    df_dict['current_agent_pos'].append(r['current_'+name+'_pos'][:2])
-    df_dict['past_agent_pos'].append(r['past_'+name+'_pos'][:,:2])
-    df_dict['future_agent_pos'].append(r['future_'+name+'_pos'][:,:2])
+    df_dict = populate_dictionary(df_dict, 'current_agent_pos', r['current_'+name+'_pos'][:2], np.ndarray, (2,), populate_func='append')    
+    df_dict = populate_dictionary(df_dict, 'past_agent_pos', r['past_'+name+'_pos'][:,:2], np.ndarray, (obs_steps, 2), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_agent_pos', r['future_'+name+'_pos'][:,:2], np.ndarray, (pred_steps, 2), populate_func='append')
 
-    df_dict['current_agent_quat'].append(r['current_'+name+'_quat'])
-    df_dict['past_agent_quat'].append(r['past_'+name+'_quat'])
-    df_dict['future_agent_quat'].append(r['future_'+name+'_quat'])
+    df_dict = populate_dictionary(df_dict, 'current_agent_quat', r['current_'+name+'_quat'], np.ndarray, (4, ), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_agent_quat', r['past_'+name+'_quat'], np.ndarray, (obs_steps, 4), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_agent_quat', r['future_'+name+'_quat'], np.ndarray, (pred_steps, 4), populate_func='append')
 
-    df_dict['current_agent_speed'].append(r['current_'+name+'_speed'])
-    df_dict['past_agent_speed'].append(r['past_'+name+'_speed'])
-    df_dict['future_agent_speed'].append(r['future_'+name+'_speed'])
+    if name == 'ego':
+        current_speed = np.array([r['current_'+name+'_speed'][0]])
+        past_speed = r['past_'+name+'_speed'][:,0]
+        future_speed = r['future_'+name+'_speed'][:,0]
+    else:
+        current_speed = r['current_'+name+'_speed'][np.newaxis]
+        past_speed = r['past_'+name+'_speed']
+        future_speed = r['future_'+name+'_speed']
+
+    df_dict = populate_dictionary(df_dict, 'current_agent_speed', current_speed, np.ndarray, (1,), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_agent_speed', past_speed, np.ndarray, (obs_steps, ), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_agent_speed', future_speed, np.ndarray, (pred_steps, ), populate_func='append')
     
     df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'])
     df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
     df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'])
 
     df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
-    
-    df_dict['current_neighbor_pos'].append(current_neighbor_pos)
-    df_dict['past_neighbor_pos'].append(past_neighbor_pos)
-    df_dict['future_neighbor_pos'].append(future_neighbor_pos)
 
-    df_dict['current_neighbor_speed'].append(current_neighbor_speed)
-    df_dict['past_neighbor_speed'].append(past_neighbor_speed)
-    df_dict['future_neighbor_speed'].append(future_neighbor_speed)
+    df_dict = populate_dictionary(df_dict, 'current_neighbor_pos', current_neighbor_pos[:,:2], np.ndarray, (nb_closest_neighbors, 2), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_neighbor_pos', past_neighbor_pos[:,:,:2], np.ndarray, (nb_closest_neighbors, obs_steps, 2), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_neighbor_pos', future_neighbor_pos[:,:,:2], np.ndarray, (nb_closest_neighbors, pred_steps, 2), populate_func='append')
+
+    df_dict = populate_dictionary(df_dict, 'current_neighbor_speed', current_neighbor_speed, np.ndarray, (nb_closest_neighbors, ), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_neighbor_speed', past_neighbor_speed, np.ndarray, (nb_closest_neighbors, obs_steps), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_neighbor_speed', future_neighbor_speed, np.ndarray, (nb_closest_neighbors, pred_steps), populate_func='append')
 
     
     return df_dict

@@ -20,6 +20,14 @@ import os
 #display = Display(visible=0, size=(1400, 900))
 #display.start()
 
+def populate_dictionary(d, key, val, val_type, val_shape, populate_func='append'):
+    assert_type_and_shape(val, key, val_type, val_shape)
+    if populate_func == 'append':
+        d[key].append(val)
+    elif populate_func == 'assign':
+        d[key] = val
+    return d
+
 def inspect_processed_dataset_dimensions(df):
     """check to see if all columns have the same shape
 
@@ -80,7 +88,7 @@ def get_dataframe_summary(d):
         dk_type = str(type(dk))
         m1 = 'n/a'
         m2 = 'n/a'
-        m3 = 'm/a'
+        m3 = 'n/a'
         if isinstance(dk, np.ndarray):
             dk_shape = dk.shape
             if len(dk.flatten()) > 0:
@@ -322,13 +330,15 @@ def assert_type(x, name, expected_type):
     assert isinstance(x, expected_type), name + " is of type {}".format(type(x))
         
 def assert_shape(x, name, expected_shape):
+    if expected_shape is None:
+        return True
     assert isinstance(expected_shape, tuple)
 
-    assert len(x.shape) == len(expected_shape), name + f" is of shape {len(x.shape)}, should be {len(expected_shape)}"
+    assert len(x.shape) == len(expected_shape), name + f" is of shape {len(x.shape)}, should be {len(expected_shape)}, {name}: {x}"
 
     for i, xsi, esi in zip(range(len(expected_shape)), x.shape, expected_shape):
         if expected_shape[i] != -1:
-            assert x.shape[i] == expected_shape[i], name + " is of shape {}, should be shape {}".format(x.size(), expected_shape)
+            assert xsi == esi, name + " is of shape {}, should be shape {}".format(x.shape, expected_shape)
             
     # if isinstance(x, torch.Tensor):
     #     assert x.size() == expected_shape, name + " is of shape {}, should be shape {}".format(x.size(), expected_shape)

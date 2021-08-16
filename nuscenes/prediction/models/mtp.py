@@ -138,8 +138,7 @@ class MTPLoss(object):
             Second item are the mode probabilities of shape [batch_size, num_modes].
         """
         mode_probabilities = model_prediction[:, -self.num_modes:].clone()
-
-        print(mode_probabilities)
+        #print(mode_probabilities)
         desired_shape = (model_prediction.shape[0], self.num_modes, -1, self.num_location_coordinates_predicted)
         trajectories_no_modes = model_prediction[:, :-self.num_modes].clone().reshape(desired_shape)
 
@@ -276,6 +275,7 @@ class MTPLoss(object):
                                                 target=targets[batch_idx],
                                                 trajectories=trajectories[batch_idx])
 
+
             best_mode_trajectory = trajectories[batch_idx, best_mode, :].unsqueeze(0)
 
             regression_loss = f.smooth_l1_loss(best_mode_trajectory, targets[batch_idx])
@@ -289,14 +289,15 @@ class MTPLoss(object):
             # miss_rate_2_loss = f.relu(smax - 2.)
             
             mode_probabilities = modes[batch_idx].unsqueeze(0)
+            #print(mode_probabilities)
             best_mode_target = torch.tensor([best_mode], device=predictions.device)
             classification_loss = f.cross_entropy(mode_probabilities, best_mode_target)
 
             #print("classification_loss: ", classification_loss)
             #print("regression_loss: ", regression_loss)
-           
-            loss = (classification_loss + self.regression_loss_weight * regression_loss)
 
+            loss = (0.*classification_loss + self.regression_loss_weight * regression_loss)
+            
             # print('fde_loss: ', fde_loss)
             # print('miss rate loss: ', miss_rate_2_loss)
             #loss = classification_loss + 1.5 * regression_loss + 0.1 * fde_loss + 0.1 * miss_rate_2_loss

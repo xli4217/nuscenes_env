@@ -58,12 +58,12 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                         if r[k] == []:
                             r[k] = np.zeros(np.array(r['current'+k[4:]]).shape)[np.newaxis]
 
-                        processed_past = process_to_len(np.array(r[k]), obs_steps, name=k, dim=0, before_or_after='before', mode='constant')
+                        processed_past = process_to_len(np.array(r[k]), obs_steps, name=k, dim=0, before_or_after='before', mode='edge')
                         training_df_dict[k].append(processed_past)
                     elif 'future' in k:
                         if r[k] == []:
                             r[k] = np.zeros(np.array(r['current'+k[6:]]).shape)[np.newaxis]
-                        processed_future = process_to_len(np.array(r[k]), pred_steps, name=k, dim=0, before_or_after='after', mode='constant')
+                        processed_future = process_to_len(np.array(r[k]), pred_steps, name=k, dim=0, before_or_after='after', mode='edge')
                         training_df_dict[k].append(processed_future)
                 else:
                     training_df_dict[k].append(r[k])
