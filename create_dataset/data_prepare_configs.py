@@ -108,12 +108,7 @@ def get_config(dataset_type='full',
                 'attributes': ['stopped', 'moving'],
                 'scenarios': ['intersection'],
                 'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
-                'interaction_filter_range': 30,
-                'maneuver_filters': {
-                    'ego_maneuver_filter':ego_maneuver_filter,
-                    'ado_maneuver_filter': ado_maneuver_filter
-                },
-                'obs_steps': 4,
+                'obs_steps': 6,
                 'pred_steps': 6,
                 'nb_closest_neighbors': 6,
                 'max_neighbor_range': 40

@@ -56,11 +56,12 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
                 current_speed = r1['current_'+r1_name+'_speed'][0]
                 past_speed = r1['past_'+r1_name+'_speed'][:,0]
                 future_speed = r1['future_'+r1_name+'_speed'][:,0]
+
             else:
                 current_speed = r1['current_'+r1_name+'_speed']
                 past_speed = r1['past_'+r1_name+'_speed']
                 future_speed = r1['future_'+r1_name+'_speed']
-     
+                
             current_neighbor_speed.append(current_speed)
             past_neighbor_speed.append(past_speed)
             future_neighbor_speed.append(future_speed)
@@ -108,14 +109,27 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
         current_speed = np.array([r['current_'+name+'_speed'][0]])
         past_speed = r['past_'+name+'_speed'][:,0]
         future_speed = r['future_'+name+'_speed'][:,0]
+
+        current_steering = np.array([r['current_'+name+'_steering'][-1]])
+        past_steering = r['past_'+name+'_steering'][:,-1]
+        future_steering = r['future_'+name+'_steering'][:,-1]
     else:
         current_speed = r['current_'+name+'_speed'][np.newaxis]
         past_speed = r['past_'+name+'_speed']
         future_speed = r['future_'+name+'_speed']
 
+        current_steering = np.array([0])
+        past_steering = np.zeros(obs_steps)
+        future_steering = np.zeros(pred_steps)
+        
     df_dict = populate_dictionary(df_dict, 'current_agent_speed', current_speed, np.ndarray, (1,), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'past_agent_speed', past_speed, np.ndarray, (obs_steps, ), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'future_agent_speed', future_speed, np.ndarray, (pred_steps, ), populate_func='append')
+
+    df_dict = populate_dictionary(df_dict, 'current_agent_steering', current_steering, np.ndarray, (1,), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_agent_steering', past_steering, np.ndarray, (obs_steps, ), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_agent_steering', future_steering, np.ndarray, (pred_steps, ), populate_func='append')
+
     
     df_dict['current_agent_raster_path'].append(r['current_'+name+'_raster_img_path'])
     df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
@@ -157,6 +171,10 @@ def final_data_processor(df, config={}):
         'past_agent_speed': [],        # np.ndarray(obs_steps, )
         'future_agent_speed': [],      # np.ndarray(pred_steps, )
 
+        'current_agent_steering':[],      # np.ndarray (1,)
+        'past_agent_steering': [],        # np.ndarray(obs_steps, )
+        'future_agent_steering': [],      # np.ndarray(pred_steps, )
+        
         'current_agent_raster_path':[],   # str
         'past_agent_raster_path':[],      # list[str]
         'future_agent_raster_path':[],    # list[str]

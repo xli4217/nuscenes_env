@@ -296,7 +296,7 @@ class MTPLoss(object):
             #print("classification_loss: ", classification_loss)
             #print("regression_loss: ", regression_loss)
 
-            loss = (0.*classification_loss + self.regression_loss_weight * regression_loss)
+            loss = (classification_loss + self.regression_loss_weight * regression_loss)
             
             # print('fde_loss: ', fde_loss)
             # print('miss rate loss: ', miss_rate_2_loss)

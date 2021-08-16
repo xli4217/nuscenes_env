@@ -6,6 +6,7 @@ import numpy as np
 from nuscenes.map_expansion.map_api import NuScenesMap
 from utils.utils import class_from_path
 from .filters.interaction_filters import interaction_filter
+from .filters.maneuver_filters import maneuver_filter
 from .process_type_and_shape import process_once as process_type_and_shape_once
 from .process_finalize import final_data_processor
 
@@ -55,8 +56,8 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
     keep_scenarios = config['other_configs']['scenarios']
 
     scenario_filter = config['other_configs']['scenario_filter']
-    maneuver_filters = config['other_configs']['maneuver_filters']
-    interaction_filter_range = config['other_configs']['interaction_filter_range']
+
+
     
     ##################################
     # add past and present to fields #
@@ -145,8 +146,11 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         # Filtering #
         #############
         #### filter categories ####
-        filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))].reset_index(drop=True, inplace=True)
-
+        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))]
+        if filtered_df is None:
+            return None
+        filtered_df.reset_index(drop=True, inplace=True)
+        
         #### filter attributes ####
         
         ### filter scenarios ####
@@ -176,9 +180,9 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         # Add Maneuvers And Interactions #
         ##################################
         #### add maneuvers ####
-        # for maneuver_name, maneuver_filter in maneuver_filters.items():
-        #     filtered_df = maneuver_filter(filtered_df)
-            
+        filtered_df = maneuver_filter(filtered_df)
+        filtered_df.reset_index(drop=True, inplace=True)
+        
         #### add interactions ####
         filtered_df = interaction_filter(filtered_df)
         filtered_df.reset_index(drop=True, inplace=True)
