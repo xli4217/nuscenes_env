@@ -102,14 +102,24 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_speed'] = self.r.current_agent_speed
 
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
-        self.all_info['ego_yaw_rate'] = 0
+        self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
     
-        self.all_info['sim_ego_pos_gb'] = self.r.current_agent_pos
-        self.all_info['sim_ego_quat_gb'] = self.r.current_agent_quat
+        self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
+        self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
+        self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
-        self.all_info['sim_ego_speed'] = self.r.current_agent_speed
-        self.all_info['sim_ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
-        self.all_info['sim_ego_yaw_rate'] = 0
+        
+        sim_ego_pose = {
+            'translation': self.sim_ego_pos_gb,
+            'rotation': self.sim_ego_quat_gb
+        }
+
+        sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
+
+        #sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
+
+        self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
+        self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
     
     def update_row(self, instance_token, sample_idx=None):
         # get the correct row
@@ -128,14 +138,21 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.instance_df = self.scene_data.loc[self.scene_data.agent_token==instance_token]
         self.instance_sample_idx_list = self.instance_df.sample_idx.tolist()
         self.instance_sample_token_list = self.instance_df.sample_token.tolist()
-        
+
         if sample_idx is not None:
             self.df_idx = np.argmin(abs(np.array(self.instance_sample_idx_list) - sample_idx))
-            self.sample_idx = sample_idx
         else:
             self.df_idx = 0
-            self.sample_idx = self.instance_sample_idx_list[self.df_idx]
-
+        self.sample_idx = self.instance_sample_idx_list[self.df_idx]
+        self.sample_token = self.instance_sample_token_list[self.df_idx]
+        self.update_row(self.instance_token, self.sample_idx)
+        
+        self.sim_ego_pos_gb = self.r.current_agent_pos
+        self.sim_ego_quat_gb = self.r.current_agent_quat
+        self.sim_ego_speed = self.r.current_agent_speed
+        self.sim_ego_yaw_rate = self.r.current_agent_steering
+        self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
+        
         self.update_all_info()
         return self.get_observation()
         
@@ -160,61 +177,58 @@ class NuScenesDatasetEnv(NuScenesAgent):
         render_info['save_image_dir'] = save_img_dir
 
         fig, ax =  render(self.graphics, render_info, self.config)
-        
-        #####################
-        # Plot GroundTruths #
-        #####################
-        sim_ego_pos = self.all_info['sim_ego_pos_gb']
-        #### plot neighbor connection lines ####
-        for n_past, n_current, n_future in zip(self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
-            # plot connection lines to n_current
-            ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
-            # plot ado past #
-            ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
-            # plot ado future #
-            ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
 
-        # plot ego past #
-        ax.scatter(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], c='grey', s=20, zorder=400)
+        if 'groundtruth' in self.config['render_elements']:
+            #####################
+            # Plot GroundTruths #
+            #####################
+            sim_ego_pos = self.all_info['sim_ego_pos_gb']
+            #### plot neighbor connection lines ####
+            for n_past, n_current, n_future in zip(self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
+                # plot connection lines to n_current
+                ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
+                # plot ado past #
+                ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
+                # plot ado future #
+                ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
 
-        # plot ego future #
-        ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=400)
+            # plot ego past #
+            ax.scatter(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], c='grey', s=20, zorder=400)
 
-        #### plot ado instance tokens ####
-        plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.2]), facecolor='red')
-        for i, instance_token in enumerate(self.r.current_neighbor_tokens):
-            plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.2]), facecolor='red')        
-        
-        #### plot interaction labels ####
-        agent_height_dict = {}
-        for agent_i_interactions in self.r.current_interactions:
-            for interaction in agent_i_interactions:
-                a1_token, interaction_name, a2_token = interaction
-                if a1_token not in list(agent_height_dict.keys()):
-                    agent_height_dict[a1_token] = np.array([0, 2.4])
-                else:
-                    agent_height_dict[a1_token] += 2
-                if a1_token == 'ego':
-                  a1_pos = self.r.current_agent_pos[:2]
-                else:
-                    idx = self.r.current_neighbor_tokens.index(a1_token)
-                    a1_pos = self.r.current_neighbor_pos[idx][:2]
+            # plot ego future #
+            ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=400)
+
+        if 'token_labels' in self.config['render_elements']:
+            #### plot ado instance tokens ####
+            plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.2]), facecolor='red')
+            for i, instance_token in enumerate(self.r.current_neighbor_tokens):
+                plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.2]), facecolor='red')        
+
+        if 'interaction_labels' in self.config['render_elements']:
+            #### plot interaction labels ####
+            agent_height_dict = {}
+            for agent_i_interactions in self.r.current_interactions:
+                for interaction in agent_i_interactions:
+                    a1_token, interaction_name, a2_token = interaction
+                    if a1_token not in list(agent_height_dict.keys()):
+                        agent_height_dict[a1_token] = np.array([0, 2.4])
+                    else:
+                        agent_height_dict[a1_token] += 2
+                    if a1_token == 'ego':
+                        a1_pos = self.r.current_agent_pos[:2]
+                    else:
+                        idx = self.r.current_neighbor_tokens.index(a1_token)
+                        a1_pos = self.r.current_neighbor_pos[idx][:2]
                 
-                plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
+                    plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
                 
-        
-        ####################   
-        # plot predictions #
-        ####################
-        if 'predictions' in list(render_info.keys()):
-            pass
-        
+                
         return fig, ax
 
     def step(self, action=None, render_info={}, save_img_dir=None):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
-        
+
         #### render ####
         fig, ax = None, None
         if len(self.config['render_type']) > 0:

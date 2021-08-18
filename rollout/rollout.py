@@ -74,26 +74,31 @@ def rollout(scene_name=None,
                 done = True
                 print("reach goal")
 
-        agent_info = obs['sensor_info']['agent_info']
+        #agent_info = obs['sensor_info']['agent_info']
         
         #############
         # Visualize #
         #############
         if 'raster' in plot_elements:
             fig, ax = plt.subplots(1,1, figsize=(5,5))
-            ax.imshow(np.transpose(obs['sim_ego_raster_image'], (1,2,0)))
+            raster = obs['sim_ego_raster_image']
+            if raster.shape == (3,250,250):
+                ax.imshow(np.transpose(raster, (1,2,0)))
+            else:
+                ax.imshow(raster)
             plt.show()
             
         #####################
         # Calculate metrics #
         #####################
+        dist_to_ados_scene = [0,0]
         #### calculate minimum distance to nearby ados ####
-        dist_to_ados_sample = [100.]
-        for a in agent_info:
-            dist_to_ado = np.linalg.norm(np.array(a['translation'][:2])-np.array(obs['sim_ego_pos_gb']))
-            dist_to_ados_sample.append(dist_to_ado)
+        # dist_to_ados_sample = [100.]
+        # for a in agent_info:
+        #     dist_to_ado = np.linalg.norm(np.array(a['translation'][:2])-np.array(obs['sim_ego_pos_gb']))
+        #     dist_to_ados_sample.append(dist_to_ado)
 
-        dist_to_ados_scene.append(min(dist_to_ados_sample))
+        # dist_to_ados_scene.append(min(dist_to_ados_sample))
         step += 1
         if debug:
             break

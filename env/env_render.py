@@ -4,6 +4,7 @@ from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
 import numpy as np
 import os
+from utils.utils import assert_shape
 
 def render(graphics, render_info, config={}):
     
@@ -67,11 +68,19 @@ def render(graphics, render_info, config={}):
 
         other_images_to_be_saved = None
         if render_info['all_info']['sim_ego_raster_image'] is not None:
+            raster =render_info['all_info']['sim_ego_raster_image']
+            if raster.shape == (3,250,250):
+                raster = np.transpose(raster, (1,2,0))
+            assert_shape(raster,'raster', (250,250,3))
             other_images_to_be_saved = {
-                'raster': np.transpose(render_info['all_info']['sim_ego_raster_image'], (1,2,0))
+                'raster': raster
             }
+
         if 'image' in render_info.keys():
-            other_images_to_be_saved = render_info['image']
+            if other_images_to_be_saved is None:
+                other_images_to_be_saved = render_info['image']
+            else:
+                other_images_to_be_saved.update(render_info['image'])
 
         render_additional = {}
         if 'lines' in render_info.keys():
@@ -91,7 +100,7 @@ def render(graphics, render_info, config={}):
             plot_human_ego = False
 
         ego_centric = False
-        if render_info['instance_token'] == 'ego':
+        if render_info['instance_token'] == 'ego' or render_info['instance_token'] is None:
             ego_centric = True
 
         fig, ax = graphics.plot_ego_scene( 

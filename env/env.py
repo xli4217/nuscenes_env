@@ -174,7 +174,7 @@ class NuScenesEnv(NuScenesAgent):
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
             #### ego raster img ####
             ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=ego_pose, include_history=False)
-            ego_raster_img = np.transpose(ego_raster_img, (2,0,1))
+            #ego_raster_img = np.transpose(ego_raster_img, (2,0,1))
             self.all_info['raster_image'] = ego_raster_img
 
             #### sim ego raster img ####
@@ -184,7 +184,7 @@ class NuScenesEnv(NuScenesAgent):
             }
 
             sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
-            sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
+            #sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
         else:
             self.all_info['raster_image'] = None
@@ -276,6 +276,9 @@ class NuScenesEnv(NuScenesAgent):
         self.center_agent = 'ado'
 
     def reset(self, scene_name=None, scene_idx=None, sample_idx=0, instance_token=None):
+        if instance_token == 'ego':
+            instance_token = None    
+        
         self.sim_ego_pos_gb = None
         self.sim_ego_quat_gb = None
         self.sample_idx = 0
@@ -283,15 +286,14 @@ class NuScenesEnv(NuScenesAgent):
         self.instance_token = None
         self.inst_ann = None
         self.center_agent = None
-        self.time = 0
-
+        self.time = 0            
+            
         if 'control_plots' in self.config['render_elements']:
             if self.config['control_mode'] != 'kinematics':
                 raise ValueError('action plots need to be generated in kinematics control mode')
             self.ap_timesteps = collections.deque(maxlen=10)
             self.ap_speed = collections.deque(maxlen=10)
             self.ap_steering = collections.deque(maxlen=10)
-
 
         if instance_token is None:
             self.reset_ego(scene_name, scene_idx, sample_idx)
@@ -325,8 +327,8 @@ class NuScenesEnv(NuScenesAgent):
         render_info['sample_token'] = self.sample['token']
         render_info['instance_token'] = self.instance_token
         render_info['sample_idx'] = self.sample_idx
-        render_info['save_img_dir'] = save_img_dir
-    
+        render_info['save_image_dir'] = save_img_dir
+
         return render(self.graphics, render_info, self.config)
         
     def step(self, action:np.ndarray=None, render_info={}, save_img_dir=None):

@@ -198,7 +198,7 @@ class SceneGraphics(NuScenesAgent):
                 if sim_ego is not None:
                     sim_ego_pose = {'translation': sim_ego['pos']}
 
-
+        
         fig, ax, other = self.plot_agent_scene(ego_centric=ego_centric,
                                                sample_token=sample_token,
                                                instance_token=instance_token,
@@ -249,7 +249,7 @@ class SceneGraphics(NuScenesAgent):
                     if isinstance(v, np.ndarray):
                         plt.imsave(p, v)
                     elif isinstance(v, matplotlib.figure.Figure):
-                        plt.savefig()
+                        plt.savefig(p)
 
         return fig, ax
 
