@@ -10,7 +10,8 @@ from loguru import logger
 
 def rollout(scene_name=None, 
             scene_idx=None, 
-            sample_idx=0, env=None, 
+            sample_idx=0,
+            env=None, 
             policy=None, 
             plot_elements=[],
             debug=False, 
@@ -44,7 +45,7 @@ def rollout(scene_name=None,
     goal_pos = obs['ego_pos_traj'][-1][:2]
 
     while not done:
-        print(f"step: {step}")
+        print(f"step: {env.sample_idx}")
         render_info = {}
         if scene_name == 'scene-1100':
             obs['gt_future_lanes'] = [right_turing_lane]
@@ -55,7 +56,11 @@ def rollout(scene_name=None,
 
         action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
         policy_info_traj.append(other_info)
-        
+
+        # if 12 < env.sample_idx < 24:
+        #     action += np.array([2,0])
+        # if env.sample_idx == 24:
+        #     break
         if render_info_env is not None:
             render_info.update(render_info_env)
 

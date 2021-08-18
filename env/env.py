@@ -170,6 +170,13 @@ class NuScenesEnv(NuScenesAgent):
         
         self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
+        #### neighbor pos ####
+        current_sim_neighbor_pos = []
+        for agent in sensor_info['agent_info']:
+            current_sim_neighbor_pos.append(agent['translation'])
+
+        self.all_info['current_sim_neighbor_pos'] = np.array(current_sim_neighbor_pos)
+            
         #### rasterized image ####
         if 'raster_image' in self.config['all_info_fields'] and self.rasterizer is not None:
             #### ego raster img ####
