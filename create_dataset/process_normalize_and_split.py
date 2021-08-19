@@ -91,9 +91,9 @@ class ProcessDatasetSplit(object):
         :returns: a pd dataframe 
         """
 
-        df = pd.DataFrame(self.data)
         if self.additional_processor is not None:
-            df = self.additional_processor(df, self.config['additional_processor']['config'])
+            df = self.additional_processor(self.data, self.config['additional_processor']['config'])
+
         train_df, val_df = self.create_train_val_split(df)
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")

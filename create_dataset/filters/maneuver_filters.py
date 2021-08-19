@@ -30,9 +30,9 @@ def ado_maneuver_filter(r):
     ado_heading = np.array(ado_heading)
     steering = (ado_heading[1:] - ado_heading[:-1])/0.5
 
-    if steering.mean() < -0.1:
+    if steering[-4:].mean() < -0.1:
         return 'turn_left'
-    elif steering.mean() > 0.1:
+    elif steering[-4:].mean() > 0.1:
         return 'turn_right'
     else:
         return 'straight'

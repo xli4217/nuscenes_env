@@ -80,6 +80,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'ego_speed': None,
             'ego_raster_image': None,
             'ego_yaw_rate': None,
+            'past_ego_pos': None,
             #### simulated ego ####
             'sim_ego_pos_gb': None,
             'sim_ego_quat_gb': None,
@@ -100,7 +101,8 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         self.all_info['ego_speed'] = self.r.current_agent_speed
-
+        self.all_info['past_ego_pos'] = self.r.past_agent_pos
+        
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
     

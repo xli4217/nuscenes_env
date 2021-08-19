@@ -289,7 +289,7 @@ class MTPLoss(object):
             # miss_rate_2_loss = f.relu(smax - 2.)
             
             mode_probabilities = modes[batch_idx].unsqueeze(0)
-            #print(mode_probabilities)
+            # print(mode_probabilities)
             best_mode_target = torch.tensor([best_mode], device=predictions.device)
             classification_loss = f.cross_entropy(mode_probabilities, best_mode_target)
 
