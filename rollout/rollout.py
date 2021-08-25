@@ -11,6 +11,7 @@ from loguru import logger
 def rollout(scene_name=None, 
             scene_idx=None, 
             sample_idx=0,
+            nb_steps=None,
             env=None, 
             policy=None, 
             plot_elements=[],
@@ -30,20 +31,18 @@ def rollout(scene_name=None,
     if scene_idx is not None:
         obs = env.reset(scene_idx=scene_idx, sample_idx=sample_idx)
     done = False
+
     policy.reset(obs)
 
-    ego_traj = [obs['ego_pos_gb']]
-    sim_ego_traj = [obs['sim_ego_pos_gb']]
-    policy_info_traj = []
-    
     if scene_name == 'scene-1100':
         right_turing_lane = np.load(os.environ['PKG_PATH']+'/logic_risk_ioc/dataset/scene-1100_right_turning_lane.npz.npy')
 
     step = 0
-    dist_to_ados_scene = []
-    scene_info = {}
-    goal_pos = obs['ego_pos_traj'][-1][:2]
+    env_info = []
+    policy_info = []
 
+    ego_goal_gb = obs['ego_pos_traj'][-1][:2]
+    
     while not done:
         print(f"step: {env.sample_idx}")
         render_info = {}
@@ -51,35 +50,18 @@ def rollout(scene_name=None,
             obs['gt_future_lanes'] = [right_turing_lane]
             render_info.update({'lines':[{'traj': right_turing_lane, 'color':'yellow', 'marker':'-.'}]})
 
-        ego_goal = convert_global_coords_to_local(np.array([obs['ego_pos_traj'][-1][:2]]), obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
-        print(f"goal: {ego_goal}")
-
+        ego_goal = convert_global_coords_to_local(ego_goal_gb, obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
+            
+        env_info.append(obs)
         action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
-        policy_info_traj.append(other_info)
+        policy_info.append(other_info)
 
-        # if 12 < env.sample_idx < 24:
-        #     action += np.array([2,0])
-        # if env.sample_idx == 24:
-        #     break
         if render_info_env is not None:
             render_info.update(render_info_env)
-
-        #### record scene_info ####
-        # scene_info = populate_scene_info(scene_info, obs, policy)
         
         #### one step ####
         obs, done, other = env.step(action, render_info, save_img_dir=scene_image_dir)
 
-        ego_traj.append(obs['ego_pos_gb'])
-        sim_ego_traj.append(env.sim_ego_pos_gb)
-        dist_to_goal = np.linalg.norm(goal_pos - env.sim_ego_pos_gb)
-
-        if demo_goal_termination:
-            if dist_to_goal < 20:
-                done = True
-                print("reach goal")
-
-        #agent_info = obs['sensor_info']['agent_info']
         
         #############
         # Visualize #
@@ -93,21 +75,12 @@ def rollout(scene_name=None,
                 ax.imshow(raster)
             plt.show()
             
-        #####################
-        # Calculate metrics #
-        #####################
-        dist_to_ados_scene = [0,0]
-        #### calculate minimum distance to nearby ados ####
-        # dist_to_ados_sample = [100.]
-        # for a in agent_info:
-        #     dist_to_ado = np.linalg.norm(np.array(a['translation'][:2])-np.array(obs['sim_ego_pos_gb']))
-        #     dist_to_ados_sample.append(dist_to_ado)
-
-        # dist_to_ados_scene.append(min(dist_to_ados_sample))
         step += 1
         if debug:
             break
-
-    return np.array(ego_traj), np.array(sim_ego_traj), min(dist_to_ados_scene), scene_info, policy_info_traj
+        if nb_steps is not None and step >= nb_steps:
+            return env_info, policy_info
+        
+    return env_info, policy_info
 
 
