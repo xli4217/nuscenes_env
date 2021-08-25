@@ -145,6 +145,22 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict = populate_dictionary(df_dict, 'past_neighbor_speed', past_neighbor_speed, np.ndarray, (nb_closest_neighbors, obs_steps), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'future_neighbor_speed', future_neighbor_speed, np.ndarray, (nb_closest_neighbors, pred_steps), populate_func='append')
 
+    current_neighbor_raster_paths = []
+    past_neighbor_raster_paths = []
+    future_neighbor_raster_paths = []
+
+    for ntoken in current_neighbor_tokens:
+        if ntoken == 'ego':
+            neighbor_r = r
+        else:
+            neighbor_r = sample_df.loc[sample_df['instance_token']==ntoken].iloc[0]
+        current_neighbor_raster_paths.append(neighbor_r['current_'+name+'_raster_img_path'])
+        past_neighbor_raster_paths.append(neighbor_r['past_'+name+'_raster_img_path'])
+        future_neighbor_raster_paths.append(neighbor_r['future_'+name+'_raster_img_path'])
+
+    df_dict['current_neighbor_raster_path'].append(current_neighbor_raster_paths)
+    df_dict['past_neighbor_raster_path'].append(past_neighbor_raster_paths)
+    df_dict['future_neighbor_raster_path'].append(future_neighbor_raster_paths)
     
     return df_dict
     
@@ -187,7 +203,11 @@ def final_data_processor(df, config={}):
 
         'current_neighbor_speed': [],  # np.ndarray(nbr_neighbors, )
         'future_neighbor_speed': [],   # np.ndarray(nbr_neighbors, pred_steps)
-        'past_neighbor_speed': []     # np.ndarray(nbr_neighbors, obs_steps)
+        'past_neighbor_speed': [],     # np.ndarray(nbr_neighbors, obs_steps)
+
+        'current_neighbor_raster_path':[],   # list[str]
+        'past_neighbor_raster_path':[],      # list[list[str]]
+        'future_neighbor_raster_path':[]    # list[list[str]]
 
     }
     
