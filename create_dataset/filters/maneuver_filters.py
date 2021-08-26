@@ -21,7 +21,8 @@ def ego_maneuver_filter(r):
 
 def ado_maneuver_filter(r):
     ado_heading = []
-    for q in r.past_agent_quat:
+    quat_history = r.past_agent_quat + [r.current_agent_quat]
+    for q in quat_history[-4:]:
         #### convert from global quat to local steering ####
         yaw = Quaternion(q)
         yaw = quaternion_yaw(yaw)
