@@ -6,6 +6,7 @@ import numpy as np
 from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local
 
 def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_closest_neighbors=4, max_neigbhor_range=40):
+
     if ego_or_ado == 'ego':
         name = 'ego'
         token = 'ego'
@@ -91,6 +92,7 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     #### scene info ####
     df_dict['scene_name'].append(str(scene_name))
     df_dict['scene_token'].append(str(r.scene_token))
+    df_dict['scene_location'].append(str(r.scene_location))
     df_dict['sample_idx'].append(int(sample_idx))
     df_dict['sample_token'].append(str(r.sample_token))
 
@@ -135,6 +137,11 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict['past_agent_raster_path'].append(r['past_'+name+'_raster_img_path'])
     df_dict['future_agent_raster_path'].append(r['future_'+name+'_raster_img_path'])
 
+    df_dict['current_agent_road_objects'].append(r['current_'+name+'_on_road_objects'])
+    df_dict['past_agent_road_objects'].append(r['past_'+name+'_on_road_objects'])
+    df_dict['future_agent_road_objects'].append(r['future_'+name+'_on_road_objects'])
+
+    #### neighbor info ####
     df_dict['current_neighbor_tokens'].append(current_neighbor_tokens)
 
     df_dict = populate_dictionary(df_dict, 'current_neighbor_pos', current_neighbor_pos[:,:2], np.ndarray, (nb_closest_neighbors, 2), populate_func='append')
@@ -169,10 +176,14 @@ def final_data_processor(df, config={}):
     max_neigbhor_range = config['other_configs']['max_neighbor_range']
     
     df_dict = {
+        #### scene information
         'scene_name': [],            # str
+        'scene_location': [],        # str
         'scene_token': [],           # str
         'sample_idx': [],            # int
         'sample_token': [],          # str
+
+        #### agent information ####
         'agent_token': [],           # str
 
         'current_agent_pos':[],      # np.ndarray (2,)
@@ -195,6 +206,12 @@ def final_data_processor(df, config={}):
         'past_agent_raster_path':[],      # list[str]
         'future_agent_raster_path':[],    # list[str]
 
+        'current_agent_road_objects':[],   # dict
+        'past_agent_road_objects':[],      # list[dict]
+        'future_agent_road_objects':[],    # list[dict]
+
+
+        #### neighbor information #####
         'current_neighbor_tokens':[], # list (nbr_neighbors)
         
         'current_neighbor_pos': [],  # np.ndarray(nbr_neighbors, 2)

@@ -166,7 +166,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         if filtered_df is None:
             return None
         filtered_df.reset_index(drop=True, inplace=True)
-        
+
         ##########################
         # Normalize And Finalize #
         ##########################        
