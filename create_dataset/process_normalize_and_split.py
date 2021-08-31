@@ -1,3 +1,4 @@
+import ray
 import os
 import numpy as np
 from numpy.lib.financial import ipmt
@@ -7,7 +8,7 @@ from PIL import Image
 
 import matplotlib.pyplot as plt
 from pathlib import Path
-from utils.utils import get_dataframe_summary, process_to_len, class_from_path
+from utils.utils import get_dataframe_summary, process_to_len, class_from_path, split_list_for_multi_worker
 import tqdm
 
 class ProcessDatasetSplit(object):
@@ -15,6 +16,7 @@ class ProcessDatasetSplit(object):
         self.config = {
             'input_data_dir': "",
             'save_dir': "",
+            'num_workers': 1,
             # key is column name in the dataframe, value is normalized range (to [0, value])
             # 'normalize_elements': {'current_ego_speed': 1, 'current_ego_steering': 2},
             'normalize_elements': {},
@@ -40,14 +42,15 @@ class ProcessDatasetSplit(object):
         
         self.final_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
 
-        df_list = []
-        for p in self.final_data_fn:
-            df = pd.read_pickle(p)
-            df_list.append(df)
-
-
-        self.data = pd.concat(df_list)
-        print(get_dataframe_summary(self.data))
+        #### initialize ray #####
+        if self.config['num_workers'] > 1:
+            ray.shutdown()
+            if os.environ['COMPUTE_LOCATION'] == 'local':
+                ray.init()
+            else:
+                ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
+                
+            self.additional_processor = ray.remote(self.additional_processor)
 
 
     def normalize(self, df, normalize_elements={'ego_current_vel': 1, 'ego_current_steering': 2}):
@@ -91,9 +94,26 @@ class ProcessDatasetSplit(object):
         :returns: a pd dataframe 
         """
 
-        if self.additional_processor is not None:
-            df = self.additional_processor(self.data, self.config['additional_processor']['config'])
+        if self.additional_processor is None:
+            raise ValueError('please provide a data processor')
 
+        if self.config['num_workers'] == 1:
+            df = self.additional_processor(self.final_data_fn, self.config['additional_processor']['config'])
+        else:
+            worker_lists = split_list_for_multi_worker(self.final_data_fn, self.config['num_workers'])
+            obj_refs = [self.additional_processor.remote(worker_list, self.config) for worker_list in worker_lists]
+
+            ready_refs, remaining_refs = ray.wait(obj_refs, num_returns=len(worker_lists), timeout=None)
+
+            df_aggre = []
+            for ref in ready_refs:
+                df_i = ray.get(ref)
+                df_aggre.append(df_i)
+
+            df = pd.concat(df_aggre)
+            
+        df.reset_index(drop=True, inplace=True)
+        
         train_df, val_df = self.create_train_val_split(df)
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")
