@@ -152,7 +152,7 @@ class StatViz(object):
             #m_df = hist_stat_df.filter(regex=m)
             print(tabulate(m_df, headers='keys', tablefmt='psql'))
             
-    def plot_boxplot(self, df_dict: dict, metrics: list=['ade', 'fde', 'maxdist'], xlabel:str='% Training data removed'):
+    def plot_boxplot(self, df_dict: dict, metrics: list, xlabel:str='% Training data removed'):
         group_dict = {
             'model': [],
             xlabel: []
