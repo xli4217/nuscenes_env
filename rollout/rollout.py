@@ -25,7 +25,7 @@ def rollout(scene_name=None,
         if not os.path.exists(save_img_dir):
             os.makedirs(save_img_dir, exist_ok=True)
 
-    env.py_logger = logger
+    #env.py_logger = logger
     if scene_name is not None:
         obs = env.reset(scene_name=scene_name, sample_idx=sample_idx)
     if scene_idx is not None:
@@ -51,7 +51,7 @@ def rollout(scene_name=None,
             render_info.update({'lines':[{'traj': right_turing_lane, 'color':'yellow', 'marker':'-.'}]})
 
         ego_goal = convert_global_coords_to_local(ego_goal_gb, obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
-            
+
         env_info.append(obs)
         action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
         policy_info.append(other_info)

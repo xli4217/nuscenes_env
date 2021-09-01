@@ -76,9 +76,10 @@ class NuScenesEnv(NuScenesAgent):
             self.rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
 
         #### Initialize ####
+        self.py_logger = py_logger
         self.all_info = {}
         self.reset()
-
+        
     def update_all_info(self):
 
         #### scene info ####
@@ -131,7 +132,9 @@ class NuScenesEnv(NuScenesAgent):
         ego_speed = sensor_info['can_info']['ego_speed_traj'][idx]
         idx = min(self.sample_idx, len(sensor_info['can_info']['ego_rotation_rate_traj'])-1)
         ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][idx][-1]
-
+        idx_plus_one = min(self.sample_idx+1, len(sensor_info['can_info']['ego_rotation_rate_traj'])-1)
+        self.next_ego_yaw_rate = sensor_info['can_info']['ego_rotation_rate_traj'][idx_plus_one][-1]
+        
         self.all_info['ego_speed'] = ego_speed
         self.all_info['ego_yaw_rate'] = ego_yaw_rate
 
@@ -356,8 +359,15 @@ class NuScenesEnv(NuScenesAgent):
             self.sim_ego_speed = self.all_info['ego_speed']
             self.sim_ego_yaw_rate = self.all_info['ego_yaw_rate']
 
+
         if self.config['control_mode'] == 'position' and action is not None:
             self.sim_ego_pos_gb = action
+            self.sim_ego_speed = np.linalg.norm(action - self.sim_ego_pos_gb)/0.5
+            
+            ### TODO: fix sim ego yaw rate update
+            self.sim_ego_yaw_rate = self.next_ego_yaw_rate
+            
+            ### TODO: fix this quat update ####
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
         
         if self.config['control_mode'] == 'kinematics' and action is not None:
