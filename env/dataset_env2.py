@@ -69,7 +69,7 @@ class DatasetEnv2(object):
             if d['scene_name'] == scene_name:
                 agent_info = d['agent_info']
                 for agent_token, info in agent_info.items():
-                    if instance in agent_token and np.linalg.norm(info['current_pos']) < 0.001:
+                    if instance in agent_token:
                         self.unsorted_agent_data.append({'agent_info': agent_info, 'sample_idx': d['sample_idx'], 'sample_token': d['sample_token']})
 
         #### sort agent_data ####
@@ -93,8 +93,8 @@ class DatasetEnv2(object):
         }
 
         render_info = {
-            'sim_ego_quat_gb': a['agent_info']['ego']['current_quat_gb'],
-            'sim_ego_pos_gb': a['agent_info']['ego']['current_pos_gb'],
+            'sim_ego_quat_gb': a['agent_info']['ego']['current_quat'],
+            'sim_ego_pos_gb': a['agent_info']['ego']['current_pos'],
             'ap_speed': None,
             'ap_steering': None,
             'scene_name': self.scene_name,
@@ -110,6 +110,7 @@ class DatasetEnv2(object):
 
         done = False
 
+        
         if self.current_agent_idx > len(self.agent_data):
             done = True
 
@@ -133,27 +134,24 @@ class DatasetEnv2(object):
             sim_ego_quat = render_info['sim_ego_quat_gb']
             #### plot neighbor connection lines ####
             for name, info in render_info['agent_info'].items():
-                n_current = convert_local_coords_to_global(info['current_pos'], sim_ego_pos, sim_ego_quat)[0]
-                n_past = convert_local_coords_to_global(info['past_pos'], sim_ego_pos, sim_ego_quat)
-                n_future = convert_local_coords_to_global(info['future_pos'], sim_ego_pos, sim_ego_quat) 
-                if name != 'ego':
-                    # plot connection lines to n_current
-                    ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
-                    # plot ado past #
-                    ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
-                    # plot ado future #
-                    ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
-                else:
-                    # plot ego past #
-                    ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
+                n_current = info['current_pos']
+                n_past = info['past_pos']
+                n_future = info['future_pos']
 
-                    # plot ego future #
-                    ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
+                # plot ado past #
+                ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
+                # plot ado future #
+                ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
 
+            for name1, info1 in render_info['agent_info'].items():
+                for name2, info2 in render_info['agent_info'].items():
+                    if name1 != name2:
+                        ax.plot([info1['current_pos'][0], info2['current_pos'][0]], [info1['current_pos'][1], info2['current_pos'][1]], 'b-', linewidth=0.5,alpha=0.3, zorder=400)
+            
         if 'token_labels' in self.config['render_elements']:
             #### plot ado instance tokens ####
             for name, info in render_info['agent_info'].items():
-                n_current = convert_local_coords_to_global(info['current_pos'], sim_ego_pos, sim_ego_quat)[0]
+                n_current = info['current_pos']
                 plot_text_box(ax, name, n_current[:2]+np.array([0,1.2]), facecolor='red')
 
         if 'interaction_labels' in self.config['render_elements']:
@@ -168,7 +166,7 @@ class DatasetEnv2(object):
                         agent_height_dict[a1_token] = np.array([0, 2.4])
                     else:
                         agent_height_dict[a1_token] += 2
-                    a1_pos= convert_local_coords_to_global(info['current_pos'], sim_ego_pos, sim_ego_quat)[0] 
+                    a1_pos= info['current_pos']
                     plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
                 
                 

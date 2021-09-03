@@ -328,7 +328,11 @@ class Minish(torch.nn.Module):
 
 def assert_type(x, name, expected_type):
     assert isinstance(x, expected_type), name + " is of type {}".format(type(x))
-        
+
+
+def assert_range(x, name, expected_range):
+    pass
+    
 def assert_shape(x, name, expected_shape):
     if expected_shape is None:
         return True
