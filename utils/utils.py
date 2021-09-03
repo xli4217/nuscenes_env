@@ -173,7 +173,7 @@ def make_2d_rotation_matrix(angle_in_radians: float) -> np.ndarray:
 
 def convert_global_coords_to_local(coordinates: np.ndarray,
                                    translation: Tuple[float, float, float],
-                                   rotation: Tuple[float, float, float, float]) -> np.ndarray:
+                                   rotation: Tuple[float, float, float, float]):
     """
     Converts global coordinates to coordinates in the frame given by the rotation quaternion and
     centered at the translation vector. The rotation is meant to be a z-axis rotation.
@@ -194,7 +194,7 @@ def convert_global_coords_to_local(coordinates: np.ndarray,
 
 def convert_local_coords_to_global(coordinates: np.ndarray,
                                    translation: Tuple[float, float, float],
-                                   rotation: Tuple[float, float, float, float]) -> np.ndarray:
+                                   rotation: Tuple[float, float, float, float]):
     """
     Converts local coordinates to global coordinates.
     :param coordinates: x,y locations. array of shape [n_steps, 2]

@@ -34,6 +34,10 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     current_neighbor_speed = []
     past_neighbor_speed = []
     future_neighbor_speed = []
+
+    current_neighbor_quat = []
+    past_neighbor_quat = []
+    future_neighbor_quat = []
     
     for atoken, dist in zip(r['current_'+name+'_neighbors'][0], r['current_'+name+'_neighbors'][1]):
         if dist < max_neigbhor_range:
@@ -53,6 +57,10 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
             past_neighbor_pos.append(r1['past_'+r1_name+'_pos'])
             future_neighbor_pos.append(r1['future_'+r1_name+'_pos'])
 
+            current_neighbor_quat.append(r1['current_'+r1_name+'_quat'])
+            past_neighbor_quat.append(r1['past_'+r1_name+'_quat'])
+            future_neighbor_quat.append(r1['future_'+r1_name+'_quat'])
+            
             if r1_name == 'ego':
                 current_speed = r1['current_'+r1_name+'_speed'][0]
                 past_speed = r1['past_'+r1_name+'_speed'][:,0]
@@ -71,14 +79,22 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     if len(current_neighbor_pos) == 0:
         return df_dict
 
+
     current_neighbor_pos = np.array(current_neighbor_pos)
-    current_neighbor_pos = process_to_len(current_neighbor_pos, nb_closest_neighbors, 'current_neighbor_pos')
-    
+    current_neighbor_pos = process_to_len(current_neighbor_pos, nb_closest_neighbors, 'current_neighbor_pos')  
     past_neighbor_pos = np.array(past_neighbor_pos)
     past_neighbor_pos = process_to_len(past_neighbor_pos, nb_closest_neighbors, 'past_neighbor_pos')
     future_neighbor_pos = np.array(future_neighbor_pos)
     future_neighbor_pos = process_to_len(future_neighbor_pos, nb_closest_neighbors, 'future_neighbor_pos')
 
+    current_neighbor_quat = np.array(current_neighbor_quat)
+    current_neighbor_quat = process_to_len(current_neighbor_quat, nb_closest_neighbors, 'current_neighbor_quat')  
+    past_neighbor_quat = np.array(past_neighbor_quat)
+    past_neighbor_quat = process_to_len(past_neighbor_quat, nb_closest_neighbors, 'past_neighbor_quat')
+    future_neighbor_quat = np.array(future_neighbor_quat)
+    future_neighbor_quat = process_to_len(future_neighbor_quat, nb_closest_neighbors, 'future_neighbor_quat')
+
+    
     current_neighbor_tokens = process_to_len(np.array(current_neighbor_tokens), nb_closest_neighbors, 'current_neighbor_tokens').tolist()
     
     current_neighbor_speed = np.array(current_neighbor_speed)
@@ -147,6 +163,11 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict = populate_dictionary(df_dict, 'current_neighbor_pos', current_neighbor_pos[:,:2], np.ndarray, (nb_closest_neighbors, 2), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'past_neighbor_pos', past_neighbor_pos[:,:,:2], np.ndarray, (nb_closest_neighbors, obs_steps, 2), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'future_neighbor_pos', future_neighbor_pos[:,:,:2], np.ndarray, (nb_closest_neighbors, pred_steps, 2), populate_func='append')
+
+    df_dict = populate_dictionary(df_dict, 'current_neighbor_quat', current_neighbor_quat, np.ndarray, (nb_closest_neighbors, 4), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'past_neighbor_quat', past_neighbor_quat, np.ndarray, (nb_closest_neighbors, obs_steps, 4), populate_func='append')
+    df_dict = populate_dictionary(df_dict, 'future_neighbor_quat', future_neighbor_quat, np.ndarray, (nb_closest_neighbors, pred_steps, 4), populate_func='append')
+
 
     df_dict = populate_dictionary(df_dict, 'current_neighbor_speed', current_neighbor_speed, np.ndarray, (nb_closest_neighbors, ), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'past_neighbor_speed', past_neighbor_speed, np.ndarray, (nb_closest_neighbors, obs_steps), populate_func='append')
@@ -218,6 +239,10 @@ def final_data_processor(df, config={}):
         'future_neighbor_pos': [],   # np.ndarray(nbr_neighbors, pred_steps, 2)
         'past_neighbor_pos': [],     # np.ndarray(nbr_neighbors, obs_steps, 2)
 
+        'current_neighbor_quat': [],  # np.ndarray(nbr_neighbors, 4)
+        'future_neighbor_quat': [],   # np.ndarray(nbr_neighbors, pred_steps, 4)
+        'past_neighbor_quat': [],     # np.ndarray(nbr_neighbors, obs_steps, 4)
+        
         'current_neighbor_speed': [],  # np.ndarray(nbr_neighbors, )
         'future_neighbor_speed': [],   # np.ndarray(nbr_neighbors, pred_steps)
         'past_neighbor_speed': [],     # np.ndarray(nbr_neighbors, obs_steps)

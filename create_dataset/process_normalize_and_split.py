@@ -39,7 +39,7 @@ class ProcessDatasetSplit(object):
         if self.config['additional_processor']['type'] is not None:
             self.additional_processor = class_from_path(self.config['additional_processor']['type'])
     
-        
+
         self.final_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
 
         #### initialize ray #####
@@ -98,6 +98,7 @@ class ProcessDatasetSplit(object):
             raise ValueError('please provide a data processor')
 
         if self.config['num_workers'] == 1:
+
             df = self.additional_processor(self.final_data_fn, self.config['additional_processor']['config'])
         else:
             worker_lists = split_list_for_multi_worker(self.final_data_fn, self.config['num_workers'])
