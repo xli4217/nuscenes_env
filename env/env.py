@@ -55,7 +55,7 @@ class NuScenesEnv(NuScenesAgent):
 
         super().__init__(config=self.config['NuScenesAgent_config'], helper=helper, py_logger=py_logger, tb_logger=tb_logger)
         
-        
+        print(f"Control mode: {self.config['control_mode']}")
         #### Instantiate Sensor ####
         sensor_config = copy.deepcopy(self.config['Sensor_config'])
         sensor_config['NuScenesAgent_config'] = self.config['NuScenesAgent_config']
@@ -144,7 +144,7 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
         self.all_info['ego_past_quat'] = np.array(self.true_ego_quat_traj)[0:self.sample_idx]
         self.all_info['ego_future_quat'] = np.array(self.true_ego_quat_traj)[self.sample_idx:]
-
+        self.all_info['scene_goal'] = self.all_info['ego_pos_traj'][-1]
 
         if self.sim_ego_pos_gb is None:
             self.sim_ego_pos_gb = np.array(ego_pose['translation'])[:2]
@@ -297,7 +297,7 @@ class NuScenesEnv(NuScenesAgent):
         self.inst_ann = None
         self.center_agent = None
         self.time = 0            
-            
+
         if 'control_plots' in self.config['render_elements']:
             if self.config['control_mode'] != 'kinematics':
                 raise ValueError('action plots need to be generated in kinematics control mode')
@@ -361,11 +361,13 @@ class NuScenesEnv(NuScenesAgent):
 
 
         if self.config['control_mode'] == 'position' and action is not None:
-            self.sim_ego_pos_gb = action
+            print(self.sim_ego_pos_gb, action)
             self.sim_ego_speed = np.linalg.norm(action - self.sim_ego_pos_gb)/0.5
-            
+            self.sim_ego_pos_gb = action
             ### TODO: fix sim ego yaw rate update
             self.sim_ego_yaw_rate = self.next_ego_yaw_rate
+
+            print(self.sim_ego_speed, self.sim_ego_yaw_rate)
             
             ### TODO: fix this quat update ####
             self.sim_ego_quat_gb = self.all_info['ego_quat_gb']

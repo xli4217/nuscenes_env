@@ -330,15 +330,30 @@ def assert_type(x, name, expected_type):
     assert isinstance(x, expected_type), name + " is of type {}".format(type(x))
 
 
-def assert_range(x, name, expected_range):
-    pass
+def assert_range(x, name, expected_range, dim=0):
+    """assert if x is in expected range
+
+    :param x: numpy array or pytorch tensor
+    :param name: name of x
+    :param expected_range: [[dim1_low, dim1_high], [dim2_low, dim2_high], ....]
+    :returns: None
+    :rtype: 
+
+    """
+
+    assert isinstance(x, np.ndarray) or isinstance(x, np.ndarray), f"{name} input type should be numpy array or pytorch tensor, got {type(x)}"
+
+    for i in range(x.shape[dim]):
+        pass
+    
+    
     
 def assert_shape(x, name, expected_shape):
     if expected_shape is None:
         return True
     assert isinstance(expected_shape, tuple)
 
-    assert len(x.shape) == len(expected_shape), name + f" is of shape {len(x.shape)}, should be {len(expected_shape)}, {name}: {x}"
+    assert len(x.shape) == len(expected_shape), name + f" is of shape {x.shape}, should be {expected_shape}, {name}: {x}"
 
     for i, xsi, esi in zip(range(len(expected_shape)), x.shape, expected_shape):
         if expected_shape[i] != -1:
