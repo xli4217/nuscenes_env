@@ -78,10 +78,9 @@ class NuScenesEnv(NuScenesAgent):
         #### Initialize ####
         self.py_logger = py_logger
         self.all_info = {}
-        self.reset()
+        #self.reset()
         
     def update_all_info(self):
-
         #### scene info ####
         scene_info = {
             'scene_token': self.scene['token'],
@@ -201,6 +200,8 @@ class NuScenesEnv(NuScenesAgent):
             self.all_info['sim_ego_raster_image'] = None
             
     def reset_ego(self, scene_name=None, scene_idx=None, sample_idx=0):
+        
+        self.scene = None
         if scene_name is None and scene_idx is None:
             scene_list = np.arange(self.config['scenes_range'][0], self.config['scenes_range'][1])
             scene_idx = np.random.choice(scene_list)
@@ -212,11 +213,13 @@ class NuScenesEnv(NuScenesAgent):
                 if scene['name'] == scene_name:
                     self.scene = scene
                     break
+            
+        if self.scene is None:
+            raise ValueError(f"scene {scene_name} is not contained in the dataset")
 
-        else:
+        if scene_name is not None and scene_idx is not None:
             raise ValueError('can not have both scene_name and scene_idx as input')
 
-        print(f"current scene: {self.scene['name']}")
         self.scene_log = self.helper.data.get('log', self.scene['log_token'])
         self.nusc_map = self.nusc_map_dict[self.scene_log['location']]
 
@@ -254,7 +257,7 @@ class NuScenesEnv(NuScenesAgent):
         self.sim_ego_pos_traj = []
         self.sim_ego_quat_traj = []
         self.center_agent = 'ego'
-
+        
     def reset_ado(self, instance_token):
         self.instance_token = instance_token
         for inst in self.nusc.instance:
@@ -297,7 +300,7 @@ class NuScenesEnv(NuScenesAgent):
         self.inst_ann = None
         self.center_agent = None
         self.time = 0            
-
+        
         if 'control_plots' in self.config['render_elements']:
             if self.config['control_mode'] != 'kinematics':
                 raise ValueError('action plots need to be generated in kinematics control mode')
@@ -306,13 +309,18 @@ class NuScenesEnv(NuScenesAgent):
             self.ap_steering = collections.deque(maxlen=10)
 
         if instance_token is None:
-            self.reset_ego(scene_name, scene_idx, sample_idx)
+            self.reset_ego(scene_name=scene_name,
+                           scene_idx=scene_idx,
+                           sample_idx=sample_idx)
         else:
             self.reset_ado(instance_token)
 
         self.update_all_info()
-        return self.get_observation()
+        
+        print(f"current scene: {self.scene['name']}")
 
+        return self.get_observation()
+    
     def get_observation(self):
         return self.all_info
 

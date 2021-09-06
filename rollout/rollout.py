@@ -35,7 +35,7 @@ def rollout(scene_name=None,
     policy.reset(obs)
 
     if scene_name == 'scene-1100':
-        right_turing_lane = np.load(os.environ['PKG_PATH']+'/logic_risk_ioc/dataset/scene-1100_right_turning_lane.npz.npy')
+        right_turing_lane = np.load(os.environ['PKG_PATH']+'/external_libs/nuscenes_env/rollout/scene-1100_right_turning_lane.npz.npy')
 
     step = 0
     env_info = []
@@ -51,11 +51,12 @@ def rollout(scene_name=None,
             render_info.update({'lines':[{'traj': right_turing_lane, 'color':'yellow', 'marker':'-.'}]})
 
         ego_goal = convert_global_coords_to_local(ego_goal_gb, obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
-
+        print(f"Goal: {ego_goal}")
+        
         env_info.append(obs)
         action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
         policy_info.append(other_info)
-
+        
         if render_info_env is not None:
             render_info.update(render_info_env)
         
