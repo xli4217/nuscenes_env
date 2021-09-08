@@ -126,7 +126,7 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['ego_pos_gb'] = np.array(ego_pose['translation'])[:2]
         self.all_info['ego_quat_gb'] = np.array(ego_pose['rotation'])
         self.all_info['ego_yaw_rad'] = self.ego_yaw
-
+        
         idx = min(self.sample_idx, len(sensor_info['can_info']['ego_speed_traj'])-1)
         ego_speed = sensor_info['can_info']['ego_speed_traj'][idx]
         idx = min(self.sample_idx, len(sensor_info['can_info']['ego_rotation_rate_traj'])-1)
@@ -139,6 +139,9 @@ class NuScenesEnv(NuScenesAgent):
 
         self.all_info['ego_pos_traj'] = np.array(self.true_ego_pos_traj)
         self.all_info['ego_quat_traj'] = np.array(self.true_ego_quat_traj)
+        self.all_info['ego_speed_traj'] = np.array(sensor_info['can_info']['ego_speed_traj'])
+        self.all_info['ego_yaw_rate_traj'] = np.array([steering[-1] for steering in sensor_info['can_info']['ego_rotation_rate_traj']])
+
         self.all_info['ego_past_pos'] = np.array(self.true_ego_pos_traj)[0:self.sample_idx]
         self.all_info['ego_future_pos'] = np.array(self.true_ego_pos_traj)[self.sample_idx:]
         self.all_info['ego_past_quat'] = np.array(self.true_ego_quat_traj)[0:self.sample_idx]
@@ -168,9 +171,9 @@ class NuScenesEnv(NuScenesAgent):
         self.all_info['sim_ego_quat_traj'] = self.sim_ego_quat_traj
 
         #### future lanes ####
-        self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
+        # self.all_info['gt_future_lanes'] = get_future_lanes(self.nusc_map, self.all_info['ego_pos_gb'], self.all_info['ego_quat_gb'], frame='global')
         
-        self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
+        # self.all_info['future_lanes'] = get_future_lanes(self.nusc_map, self.sim_ego_pos_gb, self.sim_ego_quat_gb, frame='global')
 
         #### neighbor pos ####
         current_sim_neighbor_pos = []
@@ -362,10 +365,14 @@ class NuScenesEnv(NuScenesAgent):
             fig, ax = self.render(render_info, save_img_dir)
 
         if action is None:
-            self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
-            self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
-            self.sim_ego_speed = self.all_info['ego_speed']
-            self.sim_ego_yaw_rate = self.all_info['ego_yaw_rate']
+            idx = min(self.sample_idx+1, self.all_info['ego_pos_traj'].shape[0])
+            self.sim_ego_pos_gb = self.all_info['ego_pos_traj'][idx][:2]
+            idx = min(self.sample_idx+1, self.all_info['ego_quat_traj'].shape[0])            
+            self.sim_ego_quat_gb = self.all_info['ego_quat_traj'][idx]
+            idx = min(self.sample_idx+1, self.all_info['ego_speed_traj'].shape[0])
+            self.sim_ego_speed = self.all_info['ego_speed_traj'][idx]
+            idx = min(self.sample_idx+1, self.all_info['ego_yaw_rate_traj'].shape[0])
+            self.sim_ego_yaw_rate = self.all_info['ego_yaw_rate_traj'][idx]
 
 
         if self.config['control_mode'] == 'position' and action is not None:

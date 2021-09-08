@@ -7,6 +7,7 @@ import os
 import shutil
 from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local
 from loguru import logger
+import copy
 
 def rollout(scene_name=None, 
             scene_idx=None, 
@@ -52,17 +53,16 @@ def rollout(scene_name=None,
 
         ego_goal = convert_global_coords_to_local(ego_goal_gb, obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
         print(f"Goal: {ego_goal}")
-        
-        env_info.append(obs)
-        action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal)
+
+        action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal, render=False)
         policy_info.append(other_info)
+        env_info.append(copy.deepcopy(obs))
         
         if render_info_env is not None:
             render_info.update(render_info_env)
         
         #### one step ####
         obs, done, other = env.step(action, render_info, save_img_dir=scene_image_dir)
-
         
         #############
         # Visualize #
@@ -81,7 +81,8 @@ def rollout(scene_name=None,
             break
         if nb_steps is not None and step >= nb_steps:
             return env_info, policy_info
-        
+
+        plt.close()
     return env_info, policy_info
 
 
