@@ -139,12 +139,18 @@ class NuScenesDatasetEnv(NuScenesAgent):
     
         self.instance_df = self.scene_data.loc[self.scene_data.agent_token==instance_token]
         self.instance_sample_idx_list = self.instance_df.sample_idx.tolist()
+        if len(self.instance_sample_idx_list) == 0:
+            return None
         self.instance_sample_token_list = self.instance_df.sample_token.tolist()
 
         if sample_idx is not None:
             self.df_idx = np.argmin(abs(np.array(self.instance_sample_idx_list) - sample_idx))
         else:
             self.df_idx = 0
+
+        if 'current_agent_steering' not in list(self.scene_data.keys()):
+            return None
+            
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
         self.sample_token = self.instance_sample_token_list[self.df_idx]
         self.update_row(self.instance_token, self.sample_idx)
@@ -186,7 +192,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             #####################
             sim_ego_pos = self.all_info['sim_ego_pos_gb']
             #### plot neighbor connection lines ####
-            for n_past, n_current, n_future in zip(self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
+            for n_token, n_past, n_current, n_future in zip(self.r.current_neighbor_tokens, self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
                 # plot connection lines to n_current
                 ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
                 # plot ado past #

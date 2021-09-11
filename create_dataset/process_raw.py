@@ -33,7 +33,8 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
     :returns: one pandas dataframe for each scene
 
     """
-
+    test_scene_name = config['scene_name']
+    
     if config['num_workers'] == 1:
         nusc = config['other_configs']['nusc']
         helper = config['other_configs']['helper']
@@ -42,7 +43,7 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
         nusc = ray.get(config['other_configs']['nusc'])
         helper = ray.get(config['other_configs']['helper'])
         rasterizer = ray.get(config['other_configs']['rasterizer'])
-        
+
     dataroot = config['other_configs']['dataroot']
     
     nusc_can = NuScenesCanBus(dataroot=dataroot)
@@ -88,6 +89,10 @@ def process_once(scene_name_list=[], data_save_dir=None, config={}):
 
     #### loop over scenes ####
     for scene_name in tqdm.tqdm(scene_name_list, 'processing scene'):
+        if test_scene_name is not None:
+            if not scene_name == test_scene_name:
+                continue
+        
         scene_df_dict = copy.deepcopy(df_dict)
         
         scene_token = nusc.field2token('scene', 'name', scene_name)[0]

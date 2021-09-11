@@ -353,18 +353,12 @@ def assert_shape(x, name, expected_shape):
         return True
     assert isinstance(expected_shape, tuple)
 
-    assert len(x.shape) == len(expected_shape), name + f" is of shape {x.shape}, should be {expected_shape}, {name}: {x}"
+    #assert len(tuple(x.shape)) == len(expected_shape), name + f" is of shape {x.shape}, should be {expected_shape}, {name}: {x}"
 
-    for i, xsi, esi in zip(range(len(expected_shape)), x.shape, expected_shape):
+    for i, xsi, esi in zip(range(len(expected_shape)), tuple(x.shape), expected_shape):
         if expected_shape[i] != -1:
-            assert xsi == esi, name + " is of shape {}, should be shape {}".format(x.shape, expected_shape)
+            assert xsi == esi, name + " is of shape {}, should be shape {}, discrepancy at dimension {}".format(x.shape, expected_shape, i)
             
-    # if isinstance(x, torch.Tensor):
-    #     assert x.size() == expected_shape, name + " is of shape {}, should be shape {}".format(x.size(), expected_shape)
-    # elif isinstance(x, np.ndarray):
-    #     assert x.shape == expected_shape, name + " is of shape {}, should be shape {}".format(x.shape, expected_shape)
-    # elif isinstance(x, tuple):
-    #     assert len(x) == expected_shape, name + " is of shape {}, should be shape".format(len(x), expected_shape)
         
 def assert_type_and_shape(x, name, expected_type, expected_shape):
     return all([assert_type(x, name, expected_type), assert_shape(x, name, expected_shape)])

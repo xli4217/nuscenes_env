@@ -15,6 +15,7 @@ def rollout(scene_name=None,
             nb_steps=None,
             env=None, 
             policy=None, 
+            render_policy=False,
             plot_elements=[],
             debug=False, 
             logger=None,
@@ -54,7 +55,7 @@ def rollout(scene_name=None,
         ego_goal = convert_global_coords_to_local(ego_goal_gb, obs['sim_ego_pos_gb'], obs['sim_ego_quat_gb'])
         print(f"Goal: {ego_goal}")
 
-        action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal, render=False)
+        action, render_info_env, other_info = policy.get_action(obs, goal=ego_goal, render=render_policy)
         policy_info.append(other_info)
         env_info.append(copy.deepcopy(obs))
         

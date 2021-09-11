@@ -57,15 +57,20 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
 
     scenario_filter = config['other_configs']['scenario_filter']
 
-
+    test_process_scene_name = config['scene_name']
     
     ##################################
     # add past and present to fields #
     ##################################
     for df_fn in tqdm.tqdm(data_df_list):
-        df = pd.read_pickle(df_fn)
-        scene_name = df.iloc[0].scene_name
+        #scene_name = df.iloc[0].scene_name
+        scene_name = df_fn.split('/')[-1][:-4]
+
+        if test_process_scene_name is not None:
+            if not scene_name == test_process_scene_name:
+                continue
         
+        df = pd.read_pickle(df_fn)
         ego_traj_dict = {}
         instance_traj_dict = {}
         #### initialize filtered df dict ####
@@ -81,32 +86,43 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
                 if 'ego' in key:
                     #### populate ego traj ####                    
                     ego_traj_dict[key[8:]+"_traj"] = unique(df[key].tolist(), key)
+
+        ego_traj_dict['sample_token_traj'] = unique(df['sample_token'].tolist(), 'sample_token')
                     
        #### populate instance traj ####
         for instance_token in df.instance_token.unique().tolist():
             instance_df = df.loc[df.instance_token.str.contains(instance_token)]
-
+            
             instance_tmp_dict = {}
             for k in list(instance_df.keys()):
                 if 'current_instance' in k:
                     instance_tmp_dict[k[8:]+"_traj"] = instance_df[k].tolist()
+                    instance_tmp_dict['sample_token_traj'] = unique(instance_df['sample_token'].tolist(), 'sample_token')
             instance_traj_dict[instance_token] = instance_tmp_dict
 
-                
-        for i, r in df.iterrows():
-            sample_idx = r.sample_idx
+
+        
             
+        for i, r in df.iterrows():
+            # sample_idx = r.sample_idx
             for k in list(r.keys()):
                 filtered_df_dict[k].append(r[k])
-
                 #### popluate past and future ####
                 if 'current_ego' in k:
+                    sample_idx = ego_traj_dict['sample_token_traj'].index(r.sample_token)
                     filtered_df_dict['past_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][:sample_idx])
                     filtered_df_dict['future_'+k[8:]].append(ego_traj_dict[k[8:]+"_traj"][sample_idx+1:])
                     
                 if 'current_instance' in k:
-                    filtered_df_dict['past_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][:sample_idx])
-                    filtered_df_dict['future_'+k[8:]].append(instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:])
+                    sample_idx = instance_traj_dict[r.instance_token]['sample_token_traj'].index(r.sample_token)
+                    past = instance_traj_dict[r.instance_token][k[8:]+"_traj"][:sample_idx]
+                    future = instance_traj_dict[r.instance_token][k[8:]+"_traj"][sample_idx+1:]
+                    filtered_df_dict['past_'+k[8:]].append(past)
+                    filtered_df_dict['future_'+k[8:]].append(future)
+                    #if r.sample_token == '0efac6cf63fd45aaa8c426f4ea7bd299' and r.instance_token == 'cec40f69a94740809e632323508f62d2':
+
+                        
+                        
         filtered_df = pd.DataFrame(filtered_df_dict)
         
         #########################

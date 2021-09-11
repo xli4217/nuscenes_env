@@ -6,7 +6,7 @@ from create_dataset.data_prepare_configs import get_config
 from create_dataset.process_normalize_and_split import ProcessDatasetSplit
 from pathlib import Path
 
-def create(mode='raw', num_workers=1, dataset_type='mini', test=False):
+def create(mode='raw', num_workers=1, dataset_type='mini', test=False, scene_name=None):
 
     config = get_config(dataset_type=dataset_type,
                         data_root_dir=os.path.join(str(Path(os.environ['PKG_PATH']).parent), 'data_df'),
@@ -14,6 +14,7 @@ def create(mode='raw', num_workers=1, dataset_type='mini', test=False):
                         mode=mode,
                         test=test
 )
+    config['scene_name'] = scene_name
     if mode != 'final':
         cls = RayDataProcessor(config)
         cls.run()

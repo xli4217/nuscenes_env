@@ -24,6 +24,7 @@ class RayDataProcessor(object):
             'input_data_dir': None,
             'output_data_dir': None,
             'num_workers': 1,
+            'scene_name': None, # process only this scene - for testing 
             'process_from_scratch': True,
             'other_configs': {
             },
@@ -31,7 +32,6 @@ class RayDataProcessor(object):
         }
 
         self.config.update(config)
-
         self.nusc = None
         self.helper = None
         self.rasterizer = None
@@ -46,7 +46,6 @@ class RayDataProcessor(object):
             agent_rasterizer = AgentBoxesWithFadedHistory(self.helper, seconds_of_history=2, resolution=0.2)
             self.rasterizer = InputRepresentation(static_layer_rasterizer, agent_rasterizer, Rasterizer())
 
-            
         # get total worker list #
         if self.config['input_data_dir'] is not None:
             self.input_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]

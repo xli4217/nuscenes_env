@@ -54,32 +54,82 @@ def yields(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
     v1 = speed1
     v2 = speed2
 
-    v1_dir = (traj1[2] - traj1[0]) / np.linalg.norm(traj1[2] - traj1[0])
-    v2_dir = (traj2[2] - traj2[0]) / np.linalg.norm(traj2[2] - traj2[0])
+    v1_dir = (traj1[-1] - traj1[0]) / np.linalg.norm(traj1[2] - traj1[0])
+    v2_dir = (traj2[1] - traj2[0]) / np.linalg.norm(traj2[2] - traj2[0])
 
     v_angle = np.arccos(np.dot(v1_dir, v2_dir))
 
     # if "2f44" in list(agent_trajectories.keys())[0] and "b715" in list(agent_trajectories.keys())[1]:
-        
+
+    n1_token = params['tokens'][0]
+    n2_token = params['tokens'][1]
+
     if v1[0] < 3 and np.rad2deg(v_angle) > 40: # agent1 is slowed down
         sl1 = LineString(traj1.tolist())
         plyg1 = Polygon(sl1)
 
         sl2 = LineString(traj2.tolist())
         plyg2 = Polygon(sl2)
-
+        
         if plyg1.intersects(plyg2):
             dist = sl1.boundary[0].distance(sl2.boundary[0])
-
             if dist > 3:
                 return True
 
     return False
 
-    
+
+def find_points_in_region(positions: np.ndarray, region: LineString):
+    """Find the points in a region.
+
+    Parameters
+    ----------
+    positions: np.ndarray
+        The positions of a trajectory.
+    region: LineString
+        The line region.
+    """
+    if region.is_empty:
+        return []
+    out = []
+    for i, pt in enumerate(positions):
+        if region.contains(Point(pt)):
+            out.append(i)
+    return out
+
+
 def yields1(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
     """Returns True if agent1 and agent2 start on different paths, end up in the same path, and agent2 gets first to the joint part of the path.
     """
+
+    FILTER_PARAMS = {
+        "turn": {"turn_threshold": 2.0, "window_size": 5, "window_std": 10.0},
+        "velocity": {"vel_threshold": (1.0, 0.05)},
+        "acceleration": {"acc_threshold": 0.04, "window_size": 5, "window_std": 0.04},
+        "lane_change": {
+            "lane_threshold": 0.3,
+            "skip_threshold": 2,
+            "window_size": 5,
+            "max_intersection": 3,
+            "max_lanes_in_window": 2,
+            "intersection_radius": 7.5,  # Standard lane width is 3.7m in the US
+        },
+        "follow": {"min_overlaps": 10},
+        "yield": {
+            # "yielding_time_gap": 1,
+            # "yielding_prefix": 5,
+            # "yielding_dt": 5,
+            # "yielding_dilation_radius": 0.5,
+            # "yielding_initial_distance": 5,
+            "yielding_time_gap": 1,
+            "yielding_prefix": 1,
+            "yielding_dt": 0.5,
+            "yielding_dilation_radius": 0.1,
+            "yielding_initial_distance": 1,
+        }
+    }
+
+    params = FILTER_PARAMS['yield']
 
     if agent1_traj.shape[0] < 3:
         return False
@@ -108,6 +158,7 @@ def yields1(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
     # The trajectories upto the intersection.
     positions1b = positions1[: idxs1[0], :]
     positions2b = positions2[: idxs2[0], :]
+
     if positions1b.shape[0] < 2 or positions2b.shape[0] < 2:
         return False
 
@@ -129,6 +180,7 @@ def yields1(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
         and Point(positions2b[0, :]).distance(sl1_only)
         > params["yielding_initial_distance"]  # initial point for 2 is far from trajectory 1
     ):
+        print("!!!!!!!!!! yield !!!!!!!!!!!!")
         return True
     return False
 
@@ -211,19 +263,15 @@ def interaction_filter(scene_df):
                                 params = {}
                             elif interaction_name == 'yields':
                                 interaction_func = yields
-                                params = {
-                                    'yielding_dilation_radius': 10,
-                                    'yielding_prefix': 4,
-                                    'yielding_dt': 0.5,
-                                    'yielding_time_gap': 4,
-                                    'yielding_initial_distance': 4
-                                }
                             else:
                                 raise ValueError()
 
                             has_interaction = interaction_func(a1['pos'][t:][:,:2], a1['speed'][t:],
                                                                a2['pos'][t:][:,:2], a2['speed'][t:],
-                                                               params)
+                                                               params={'tokens': (n1_token, n2_token)})
+                            # if n1_token == 'ego' and n2_token == 'cec40f69a94740809e632323508f62d2':
+                            #     import ipdb; ipdb.set_trace()
+
                             if has_interaction:
                                 interactions.append((n1_token, interaction_name, n2_token))
 
