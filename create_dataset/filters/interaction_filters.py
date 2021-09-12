@@ -54,27 +54,43 @@ def yields(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
     v1 = speed1
     v2 = speed2
 
-    v1_dir = (traj1[-1] - traj1[0]) / np.linalg.norm(traj1[2] - traj1[0])
-    v2_dir = (traj2[1] - traj2[0]) / np.linalg.norm(traj2[2] - traj2[0])
+    v1_dir = (traj1[2] - traj1[0]) / np.linalg.norm(traj1[2] - traj1[0])
+    v2_dir = (traj2[2] - traj2[0]) / np.linalg.norm(traj2[2] - traj2[0])
 
-    v_angle = np.arccos(np.dot(v1_dir, v2_dir))
 
-    # if "2f44" in list(agent_trajectories.keys())[0] and "b715" in list(agent_trajectories.keys())[1]:
+    v_angle = np.rad2deg(np.arccos(np.dot(v1_dir, v2_dir)))
 
     n1_token = params['tokens'][0]
     n2_token = params['tokens'][1]
 
-    if v1[0] < 3 and np.rad2deg(v_angle) > 40: # agent1 is slowed down
+    #if n1_token == 'ego' and 'ee52' in n2_token:
+
+
+    
+    if v1[0] < 5 and 40 < v_angle < 175 : # agent1 is slowed down + a1 and a2 has velocity angles greater than threshold
         sl1 = LineString(traj1.tolist())
         plyg1 = Polygon(sl1)
 
+        # extend a1's trajectory when calculating intersection
+        s1_last_dir = (traj1[-1] - traj1[-2]) / np.linalg.norm(traj1[-1] - traj1[-2])
+        traj1_extended = np.vstack([traj1, (traj1[-1] + s1_last_dir*10)[np.newaxis]])
+        sl1_extended = LineString(traj1_extended.tolist())
+        plyg1_extended = Polygon(sl1_extended)
+        
         sl2 = LineString(traj2.tolist())
         plyg2 = Polygon(sl2)
         
-        if plyg1.intersects(plyg2):
-            dist = sl1.boundary[0].distance(sl2.boundary[0])
-            if dist > 3:
-                return True
+        #if plyg1_extended.intersects(plyg2):
+        # start point distance between a1 and a2 should be larger than a threshold (avoid lead-follow)
+        #dist1 = sl1.boundary[0].distance(sl2.boundary[0])
+        dist1 = np.linalg.norm(traj1[0] - traj2[0])
+        # a1 destination is close to where a2 is now
+        #dist2 = sl1.boundary[-1].distance(sl2.boundary[0])
+        dist2 = np.linalg.norm(traj1[-1] - traj2[0])
+
+        
+        if dist1 > 3 and dist2 < 15:
+            return True
 
     return False
 
@@ -266,15 +282,20 @@ def interaction_filter(scene_df):
                             else:
                                 raise ValueError()
 
+
                             has_interaction = interaction_func(a1['pos'][t:][:,:2], a1['speed'][t:],
                                                                a2['pos'][t:][:,:2], a2['speed'][t:],
                                                                params={'tokens': (n1_token, n2_token)})
-                            # if n1_token == 'ego' and n2_token == 'cec40f69a94740809e632323508f62d2':
-                            #     import ipdb; ipdb.set_trace()
 
+
+                            # if n1_token == 'ego' and 'ee52' in n2_token:
+
+                            #     import ipdb; ipdb.set_trace()
+                                
                             if has_interaction:
                                 interactions.append((n1_token, interaction_name, n2_token))
-
+                                
+            
             if t == obs_steps:
                 current_interactions_i.append(interactions)
             if t < obs_steps:
@@ -282,10 +303,12 @@ def interaction_filter(scene_df):
             if t > obs_steps:
                 future_interactions_i.append(interactions)
 
+
         current_interactions.append(current_interactions_i)
         past_interactions.append(past_interactions_i)
         future_interactions.append(future_interactions_i)
 
+        
     scene_df['current_interactions'] = current_interactions
     scene_df['past_interactions'] = past_interactions
     scene_df['future_interactions'] = future_interactions

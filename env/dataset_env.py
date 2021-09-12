@@ -33,6 +33,8 @@ from pathlib import Path
 from .env_utils import *
 from .env_render import render
 
+from .dataset_adapter import gnn_adapt_one_df_row
+
 class NuScenesDatasetEnv(NuScenesAgent):
 
     def __init__(self, config={}, helper=None, py_logger=None, tb_logger=None):
@@ -110,6 +112,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
+        self.all_info['gnn_data'] = gnn_adapt_one_df_row(self.r)
         
         sim_ego_pose = {
             'translation': self.sim_ego_pos_gb,
@@ -273,6 +276,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if self.df_idx >= len(self.instance_sample_idx_list):
             done = True
         other = {
+            'render_fig': fig,
             'render_ax': ax
         }
         return self.get_observation(), done, other
