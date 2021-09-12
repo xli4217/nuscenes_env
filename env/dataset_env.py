@@ -33,7 +33,7 @@ from pathlib import Path
 from .env_utils import *
 from .env_render import render
 
-from .dataset_adapter import gnn_adapt_one_df_row
+from task_specific.dataset_adapter import gnn_adapt_one_df_row
 
 class NuScenesDatasetEnv(NuScenesAgent):
 
