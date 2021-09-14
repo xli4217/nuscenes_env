@@ -110,7 +110,7 @@ def get_config(dataset_type='full',
                 'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
                 'obs_steps': 6,
                 'pred_steps': 6,
-                'nb_closest_neighbors': 6,
+                'nb_closest_neighbors': 3,
                 'max_neighbor_range': 40
             },
             'process_once_func': 'create_dataset.process_filtered.process_once'
@@ -123,7 +123,7 @@ def get_config(dataset_type='full',
             'output_data_dir': dir_training,
             'num_workers': NUM_WORKERS,
             'other_configs':{
-                'obs_steps': 4,
+                'obs_steps': 6,
                 'pred_steps': 6
             },
             'process_once_func': 'create_dataset.process_type_and_shape.process_once'
@@ -140,7 +140,7 @@ def get_config(dataset_type='full',
             'additional_processor': {
                 'type': 'create_dataset.dataset_utils.data_processor',
                 'config': {
-                    'nb_closest_neighbors': 6,
+                    'nb_closest_neighbors': 3,
                     'max_neighbor_range': 40
                 }
             },

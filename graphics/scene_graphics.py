@@ -85,7 +85,7 @@ class SceneGraphics(NuScenesAgent):
             #'traffic_light'
         ]
 
-        self.plot_list = ['ego', 'other_cars', 'pedestrian', 'cam',
+        self.plot_list = ['ego', 'other_cars', 'pedestrian', 'cam', 'map_info',
                           'labeled_map', 'sensing_patch', 'sensor_info']
     
     def update_all_info(self):
@@ -432,10 +432,11 @@ class SceneGraphics(NuScenesAgent):
 
             
         #### plot all_info ####
-        if not ego_centric:
-            self.plot_map_info(ax, agent_pos, nusc_map, text_box=text_box)
-        else:
-            self.plot_map_info(ax, ego_pos, nusc_map, text_box=text_box)
+        if 'map_info' in self.plot_list:
+            if not ego_centric:
+                self.plot_map_info(ax, agent_pos, nusc_map, text_box=text_box)
+            else:
+                self.plot_map_info(ax, ego_pos, nusc_map, text_box=text_box)
 
         #### plot sensor info ###
         if sensor_info is not None and 'sensor_info' in plot_list:

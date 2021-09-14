@@ -93,6 +93,9 @@ class NuScenesDatasetEnv(NuScenesAgent):
         }
         #self.reset()
 
+    def set_adapt_one_row_func(self, func=None):
+        self.adapt_one_row = func
+        
     def update_all_info(self):
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
         self.sample_token = self.instance_sample_token_list[self.df_idx]
@@ -113,6 +116,9 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         self.all_info['gnn_data'] = gnn_adapt_one_df_row(self.r)
+
+        if self.adapt_one_row is not None:
+            self.all_info['predictor_data'] = self.adapt_one_row(self.r, self.config['raster_dir'], obs_len=4, pred_len=6)[0]
         
         sim_ego_pose = {
             'translation': self.sim_ego_pos_gb,
@@ -195,25 +201,45 @@ class NuScenesDatasetEnv(NuScenesAgent):
             #####################
             sim_ego_pos = self.all_info['sim_ego_pos_gb']
             #### plot neighbor connection lines ####
+            all_pos = np.vstack([self.r.current_neighbor_pos, self.r.current_agent_pos])
+
+            for p1 in all_pos:
+                for p2 in all_pos:
+                    ax.plot([p1[0], p2[0]], [p1[1], p2[1]], 'b-', linewidth=0.5,alpha=0.3, zorder=400)
+
+            
             for n_token, n_past, n_current, n_future in zip(self.r.current_neighbor_tokens, self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
                 # plot connection lines to n_current
-                ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
+                #ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
                 # plot ado past #
-                ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=400)
+                ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=800)
                 # plot ado future #
-                ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=400)
+                ax.scatter(n_future[:,0], n_future[:,1], c='yellow', s=20, zorder=800)
 
+                # plot ado past #
+                ax.plot(n_past[:,0], n_past[:,1], c='grey', zorder=800)
+                # plot ado future #
+                ax.plot(n_future[:,0], n_future[:,1], c='yellow', zorder=800)
+
+                
             # plot ego past #
-            ax.scatter(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], c='grey', s=20, zorder=400)
+            ax.scatter(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], c='grey', s=20, zorder=800)
 
             # plot ego future #
-            ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=400)
+            ax.scatter(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], c='yellow', s=20, zorder=800)
 
+            # plot ego past #
+            ax.plot(self.r.past_agent_pos[:,0], self.r.past_agent_pos[:,1], zorder=800)
+
+            # plot ego future #
+            ax.plot(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], zorder=800)
+ 
+            
         if 'token_labels' in self.config['render_elements']:
             #### plot ado instance tokens ####
-            plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.2]), facecolor='red')
+            plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.5]), facecolor='red')
             for i, instance_token in enumerate(self.r.current_neighbor_tokens):
-                plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.2]), facecolor='red')        
+                plot_text_box(ax, instance_token[:4], self.r.current_neighbor_pos[i][:2]+np.array([0,1.5]), facecolor='red')        
 
         if 'interaction_labels' in self.config['render_elements']:
             #### plot interaction labels ####
