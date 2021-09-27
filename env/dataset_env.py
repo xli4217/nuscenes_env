@@ -1,9 +1,9 @@
 import os
-import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import collections
+import matplotlib
 import pandas as pd
+from typing import List, Tuple, Dict, Union
 
 from nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
@@ -12,17 +12,19 @@ from nuscenes.prediction import PredictHelper
 from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
+from nuscenes.prediction.helper import angle_of_rotation
+from shapely import affinity
+from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
+
 
 from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local, assert_type_and_shape
 from utils.transformations import *
 
-from celluloid import Camera
+from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D, process_to_len
+
 from graphics.nuscenes_agent import NuScenesAgent
-from .sensing import Sensor
 from graphics.scene_graphics import SceneGraphics
 import copy
-import tqdm
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from input_representation.static_layers import StaticLayerRasterizer
 from input_representation.agents import AgentBoxesWithFadedHistory
@@ -46,7 +48,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
-            'render_elements': ['sim_ego'], # can contain ['sensor_info', 'sim_ego', 'human_ego', 'control_plots']
+            'render_elements': ['sim_ego'],# can contain ['groundtruth','token_labels', 'interaction_labels ,'sim_ego', 'human_ego', 'control_plots', 'risk_map']
             'patch_margin': 30,
             'save_image_dir': None,
             'control_mode': 'position'
@@ -60,7 +62,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         graphics_config['NuScenesAgent_config'] = self.config['NuScenesAgent_config']
         graphics_config['load_dataset'] = False
         self.graphics = SceneGraphics(graphics_config, self.helper, self.py_logger, self.tb_logger)
-
 
         #### Initialize Rasterizer ####
         self.rasterizer = None
@@ -86,6 +87,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             #### simulated ego ####
             'sim_ego_pos_gb': None,
             'sim_ego_quat_gb': None,
+            'sim_ego_yaw_rad': None,
             'sim_ego_pos_traj': None,
             'sim_ego_speed': None,
             'sim_ego_raster_image': None,
@@ -102,6 +104,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         self.update_row(self.instance_token, self.sample_idx)
         
+        #### Dataset Ego ####
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
         self.all_info['ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
@@ -111,14 +114,19 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
     
+        #### Sim Ego ####
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
+        sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
+        self.all_info['sim_ego_yaw_rad'] = angle_of_rotation(quaternion_yaw(sim_ego_yaw))
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
+        
+        # TODO: temp hack for icra prediction #
         self.all_info['gnn_data'] = gnn_adapt_one_df_row(self.r)
-
         if self.adapt_one_row is not None:
             self.all_info['predictor_data'] = self.adapt_one_row(self.r, self.config['raster_dir'], obs_len=4, pred_len=6)[0]
+        #######################################
         
         sim_ego_pose = {
             'translation': self.sim_ego_pos_gb,
@@ -258,7 +266,22 @@ class NuScenesDatasetEnv(NuScenesAgent):
                         a1_pos = self.r.current_neighbor_pos[idx][:2]
                 
                     plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
-                
+        if 'risk_map' in self.config['render_elements']:
+            patch_size = (40, 40)
+            sensing_patch = self.get_sensing_patch(patch_size=patch_size, 
+                                                   ego_pos=self.all_info['sim_ego_pos_gb'], 
+                                                   ego_yaw_rad=self.all_info['sim_ego_yaw_rad'])['polygon']
+            
+            polygon  = matplotlib.patches.Polygon(np.array(list(sensing_patch.exterior.coords)),
+                                                  fill=True,
+                                                  fc='green',
+                                                  alpha=0.3,
+                                                  #edgecolor='green',
+                                                  #linestyle='--',
+                                                  linewidth=2,
+                                                  zorder=700)
+            ax.add_patch(polygon)
+        
                 
         return fig, ax
 
@@ -310,3 +333,66 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         
         return self.get_observation(), done, other
+
+
+    def get_sensing_patch(self,patch_size:Union[List, Tuple], 
+                          ego_pos:Union[List, np.ndarray], 
+                          ego_yaw_rad:Union[List, np.ndarray]):
+        
+        sensing_patch_width = patch_size[0]
+        sensing_patch_length = patch_size[1]
+        patch_center_before_rotation = np.array([ego_pos[0],
+                                                 ego_pos[1]])
+
+        
+        sensing_patch_coord_before_rotation = [
+            ego_pos[0] - sensing_patch_width/2,
+            ego_pos[1] - sensing_patch_length/2,
+            ego_pos[0] + sensing_patch_width/2,
+            ego_pos[1] + sensing_patch_length/2 
+        ]
+
+        ## generate sensing patch mesh
+        x = np.arange(sensing_patch_coord_before_rotation[0], sensing_patch_coord_before_rotation[2], 0.2)
+        y = np.arange(sensing_patch_coord_before_rotation[1], sensing_patch_coord_before_rotation[3], 0.2)
+
+        X, Y = np.meshgrid(x, y)
+        ### apply rotation
+        X, Y = rotate_mesh2D(pos=ego_pos, rot_rad=ego_yaw_rad, X=X, Y=Y, frame='current')
+
+        ## generate sensing patch shapely polygon
+        ego_yaw_degrees = np.rad2deg(ego_yaw_rad)
+        sensing_patch = self.get_patch_coord(patch_box=(patch_center_before_rotation[0],
+                                                        patch_center_before_rotation[1],
+                                                        sensing_patch_length,
+                                                        sensing_patch_width),
+                                             rotate_center=(ego_pos[0], ego_pos[1]),
+                                             patch_angle=-ego_yaw_degrees)
+
+        sensing_patch_info = {
+            'mesh': [X, Y],
+            'polygon': sensing_patch
+        }
+
+        return sensing_patch_info
+    
+    def get_patch_coord(self,patch_box: Tuple[float, float, float, float],
+                        rotate_center: Tuple[float, float],
+                        patch_angle: float = 0.0):
+        """
+        Convert patch_box to shapely Polygon coordinates.
+        :param patch_box: Patch box defined as [x_center, y_center, height, width].
+        :param patch_angle: Patch orientation in degrees.
+        :return: Box Polygon for patch_box.
+        """
+        patch_x, patch_y, patch_h, patch_w = patch_box
+
+        x_min = patch_x - patch_w / 2.0
+        y_min = patch_y - patch_h / 2.0
+        x_max = patch_x + patch_w / 2.0
+        y_max = patch_y + patch_h / 2.0
+
+        patch = box(x_min, y_min, x_max, y_max)
+        patch = affinity.rotate(patch, patch_angle, origin=(rotate_center[0], rotate_center[1]), use_radians=False)
+
+        return patch

@@ -4,7 +4,7 @@ import time
 from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
-from typing import Tuple, Dict, Callable
+from typing import Tuple, Dict, Callable, Union
 import importlib
 from prettytable import PrettyTable
 
@@ -326,6 +326,15 @@ class Minish(torch.nn.Module):
             return x.min(dim, keepdim=keepdim)[0]
 
 
+def assert_tensor(x:Union[np.ndarray, torch.Tensor], 
+                  name:str, 
+                  expected_type:str=None, 
+                  expected_shape:Tuple=None,
+                  expected_range:Tuple=None):
+    assert_type_and_shape(x, name, expected_type, expected_shape)
+    if expected_range is not None:
+        assert_range(x, name, expected_range)
+    
 def assert_type(x, name, expected_type):
     assert isinstance(x, expected_type), name + " is of type {}".format(type(x))
 
@@ -352,11 +361,11 @@ def assert_shape(x, name, expected_shape):
     if expected_shape is None:
         return True
     assert isinstance(expected_shape, tuple)
-
+    
     #assert len(tuple(x.shape)) == len(expected_shape), name + f" is of shape {x.shape}, should be {expected_shape}, {name}: {x}"
 
     for i, xsi, esi in zip(range(len(expected_shape)), tuple(x.shape), expected_shape):
-        if expected_shape[i] != -1:
+        if expected_shape[i] != -1 and expected_shape[i] is not None:
             assert xsi == esi, name + " is of shape {}, should be shape {}, discrepancy at dimension {}".format(x.shape, expected_shape, i)
             
         

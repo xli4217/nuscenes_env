@@ -1,7 +1,6 @@
 import ray
 import os
 import numpy as np
-from numpy.lib.financial import ipmt
 import pandas as pd
 import cloudpickle
 from PIL import Image
@@ -12,7 +11,7 @@ from utils.utils import get_dataframe_summary, process_to_len, class_from_path, 
 import tqdm
 
 class ProcessDatasetSplit(object):
-    def __init__(self, config={}):
+    def __init__(self, config={}, py_logger=None):
         self.config = {
             'input_data_dir': "",
             'save_dir': "",
@@ -30,7 +29,10 @@ class ProcessDatasetSplit(object):
             }
         }
         self.config.update(config)
-
+        self.py_logger = py_logger
+        if py_logger is not None:
+            self.py_logger.info(f"ProcessDatasetSplit config: {self.config}")
+    
         if self.config['train_val_split_filter']['type'] is None:
             raise ValueError('train val split filter not provided')
         self.train_val_split_filter = class_from_path(self.config['train_val_split_filter']['type'])
@@ -48,8 +50,11 @@ class ProcessDatasetSplit(object):
             if os.environ['COMPUTE_LOCATION'] == 'local':
                 ray.init()
             else:
-                ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
-                
+                if os.environ['COMPUTE_LOCATION'] == 'satori':
+                    ray.init(temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'))
+                else:
+                    ray.init(_temp_dir=os.path.join(os.environ['HOME'], 'ray_tmp'), include_dashboard=False)
+                    
             self.additional_processor = ray.remote(self.additional_processor)
 
 
