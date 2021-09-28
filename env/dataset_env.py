@@ -1,4 +1,5 @@
 import os
+import ipdb
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -17,7 +18,7 @@ from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 
 
-from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local, assert_type_and_shape
+from utils.utils import assert_tensor, convert_local_coords_to_global, convert_global_coords_to_local, assert_tensor, get_dataframe_summary
 from utils.transformations import *
 
 from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D, process_to_len
@@ -44,11 +45,12 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.config = {
             'NuScenesAgent_config':{},
             'data_dir': None,
+            'data_type': 'scene', # this can be 'train' or 'scene'
             'raster_dir': None,
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
-            'render_elements': ['sim_ego'],# can contain ['groundtruth','token_labels', 'interaction_labels ,'sim_ego', 'human_ego', 'control_plots', 'risk_map']
+            'render_elements': ['sim_ego'],# can contain ['groundtruth','token_labels', 'interaction_labels ,'sim_ego', 'human_ego', 'control_plots', 'risk_map', 'lanes']
             'patch_margin': 30,
             'save_image_dir': None,
             'control_mode': 'position'
@@ -93,8 +95,13 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'sim_ego_raster_image': None,
             'sim_ego_yaw_rate': None
         }
-        #self.reset()
-
+       
+        if self.config['data_type'] == 'train':
+            train_df = pd.read_pickle(self.config['data_dir'] + 'train.pkl')
+            val_df = pd.read_pickle(self.config['data_dir'] + 'val.pkl')
+            self.df = pd.concat([train_df, val_df])
+            print(get_dataframe_summary(self.df))
+            
     def set_adapt_one_row_func(self, func=None):
         self.adapt_one_row = func
         
@@ -125,7 +132,12 @@ class NuScenesDatasetEnv(NuScenesAgent):
         # TODO: temp hack for icra prediction #
         self.all_info['gnn_data'] = gnn_adapt_one_df_row(self.r)
         if self.adapt_one_row is not None:
-            self.all_info['predictor_data'] = self.adapt_one_row(self.r, self.config['raster_dir'], obs_len=4, pred_len=6)[0]
+            config = {
+                'obs_len': 4,
+                'pred_len':6
+            }
+            self.config.update(config)
+            self.all_info['adapt_one_row_data'] = self.adapt_one_row(self.r, self.config)[0]
         #######################################
         
         sim_ego_pose = {
@@ -150,8 +162,12 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.scene_name = self.scene_list[scene_idx][:-4]
         else:
             self.scene_name = scene_name
-            
-        self.scene_data = pd.read_pickle(os.path.join(self.config['data_dir'], self.scene_name+".pkl"))
+        
+        if self.config['data_type'] == 'scene':
+            self.scene_data = pd.read_pickle(os.path.join(self.config['data_dir'], self.scene_name+".pkl"))
+        else:
+            self.scene_data = self.df.query("scene_name == @scene_name")
+        
         self.instance_token = instance_token
     
         self.instance_df = self.scene_data.loc[self.scene_data.agent_token==instance_token]
@@ -203,6 +219,13 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         fig, ax =  render(self.graphics, render_info, self.config)
 
+
+        if 'traffic_graph' in self.config['render_elements']:
+            all_pos = np.vstack([self.r.current_neighbor_pos, self.r.current_agent_pos])
+            for p1 in all_pos:
+                for p2 in all_pos:
+                    ax.plot([p1[0], p2[0]], [p1[1], p2[1]], 'b-', linewidth=0.5,alpha=0.3, zorder=400)
+
         if 'groundtruth' in self.config['render_elements']:
             #####################
             # Plot GroundTruths #
@@ -210,15 +233,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
             sim_ego_pos = self.all_info['sim_ego_pos_gb']
             #### plot neighbor connection lines ####
             all_pos = np.vstack([self.r.current_neighbor_pos, self.r.current_agent_pos])
-
-            for p1 in all_pos:
-                for p2 in all_pos:
-                    ax.plot([p1[0], p2[0]], [p1[1], p2[1]], 'b-', linewidth=0.5,alpha=0.3, zorder=400)
-
             
             for n_token, n_past, n_current, n_future in zip(self.r.current_neighbor_tokens, self.r.past_neighbor_pos, self.r.current_neighbor_pos, self.r.future_neighbor_pos):
                 # plot connection lines to n_current
                 #ax.plot([sim_ego_pos[0], n_current[0]], [sim_ego_pos[1], n_current[1]], 'b-', linewidth=2, zorder=400)
+                
                 # plot ado past #
                 ax.scatter(n_past[:,0], n_past[:,1], c='grey', s=20, zorder=800)
                 # plot ado future #
@@ -282,7 +301,23 @@ class NuScenesDatasetEnv(NuScenesAgent):
                                                   zorder=700)
             ax.add_patch(polygon)
         
+        if 'lanes' in self.config['render_elements']:
+            ks = list(self.r.keys())
+            if 'past_agent_lane' in ks:
+                past_agent_lane = self.r['past_agent_lane']
+                ax.plot(past_agent_lane[:,0], past_agent_lane[:,1], linestyle='-.', color='grey', linewidth=2, zorder=750)
                 
+            if 'future_agent_lane' in ks:
+                future_agent_lane = self.r['future_agent_lane']
+                ax.plot(future_agent_lane[:,0], future_agent_lane[:,1], linestyle='-.', color='green', linewidth=2, zorder=750)
+                
+            for pl in self.r.past_neighbor_lane:
+                ax.plot(pl[:,0], pl[:,1], linestyle='-.', color='grey', linewidth=1, zorder=750)
+            
+            for fl in self.r.future_neighbor_lane:
+                ax.plot(fl[:,0], fl[:,1], linestyle='-.', color='green', linewidth=2, zorder=750)
+            
+            
         return fig, ax
 
     def step(self, action=None, render_info={}, save_img_dir=None):
