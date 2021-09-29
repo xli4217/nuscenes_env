@@ -1252,7 +1252,7 @@ class NuScenesMapExplorer:
         if out_path is not None:
             plt.tight_layout()
             plt.savefig(out_path, bbox_inches='tight', pad_inches=0)
-
+        
         return fig, ax
             
     def render_egoposes_on_fancy_map(self,

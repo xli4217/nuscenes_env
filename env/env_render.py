@@ -103,7 +103,7 @@ def render(graphics, render_info, config={}):
         if render_info['instance_token'] == 'ego' or render_info['instance_token'] is None:
             ego_centric = True
 
-        fig, ax = graphics.plot_ego_scene( 
+        fig, ax, other = graphics.plot_ego_scene( 
             ego_centric=ego_centric,
             sample_token=render_info['sample_token'],
             instance_token=render_info['instance_token'],
@@ -120,4 +120,4 @@ def render(graphics, render_info, config={}):
             patch_margin=config['patch_margin'],
         )
 
-        return fig, ax
+        return fig, ax, other

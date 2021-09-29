@@ -1,5 +1,6 @@
 import json
 from future.utils import viewitems
+import ipdb
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -251,7 +252,7 @@ class SceneGraphics(NuScenesAgent):
                     elif isinstance(v, matplotlib.figure.Figure):
                         plt.savefig(p)
 
-        return fig, ax
+        return fig, ax, other
 
     def plot_agent_scene(self,
                          ego_centric:bool=False,
@@ -493,8 +494,7 @@ class SceneGraphics(NuScenesAgent):
             plt.grid('off')
             ax.grid(False)
         ax.set_aspect('equal')
-      
-
+        
         other = {'cam_fig': cam_fig, 'cam_ax': cam_ax, 'sfig': sfig, 'sax': sax}
         return fig, ax, other
 

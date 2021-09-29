@@ -218,8 +218,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         render_info['sample_idx'] = self.sample_idx
         render_info['save_image_dir'] = save_img_dir
 
-        fig, ax =  render(self.graphics, render_info, self.config)
-
+        fig, ax, other =  render(self.graphics, render_info, self.config)
 
         if 'traffic_graph' in self.config['render_elements']:
             all_pos = np.vstack([self.r.current_neighbor_pos, self.r.current_agent_pos])
@@ -304,7 +303,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                 ax.plot(fl[:,0], fl[:,1], linestyle='-.', color='green', linewidth=2, zorder=750)
             
             
-        return fig, ax
+        return fig, ax, other
 
     def step(self, action=None, render_info={}, save_img_dir=None):
         if self.py_logger is not None:
@@ -345,12 +344,13 @@ class NuScenesDatasetEnv(NuScenesAgent):
         #### render ####
         fig, ax = None, None
         if len(self.config['render_type']) > 0:
-            fig, ax = self.render(render_info, save_img_dir)
+            fig, ax, render_other = self.render(render_info, save_img_dir)
 
         other = {
             'render_fig': fig,
             'render_ax': ax
         }
+        other.update(render_other)
 
         
         return self.get_observation(), done, other
