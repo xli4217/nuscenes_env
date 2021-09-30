@@ -309,6 +309,10 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
 
+        #### render ####
+        fig, ax = None, None
+        if len(self.config['render_type']) > 0:
+            fig, ax, render_other = self.render(render_info, save_img_dir)
 
         if action is None:
             self.sim_ego_pos_gb = self.all_info['ego_pos_gb']
@@ -341,11 +345,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if self.df_idx >= len(self.instance_sample_idx_list):
             done = True
 
-        #### render ####
-        fig, ax = None, None
-        if len(self.config['render_type']) > 0:
-            fig, ax, render_other = self.render(render_info, save_img_dir)
-
         other = {
             'render_fig': fig,
             'render_ax': ax
@@ -354,5 +353,3 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         
         return self.get_observation(), done, other
-
-
