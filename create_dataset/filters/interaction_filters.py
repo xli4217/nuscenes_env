@@ -74,6 +74,7 @@ def yields(agent1_traj, speed1=None, agent2_traj=None, speed2=None, params={}):
         # extend a1's trajectory when calculating intersection
         s1_last_dir = (traj1[-1] - traj1[-2]) / np.linalg.norm(traj1[-1] - traj1[-2])
         traj1_extended = np.vstack([traj1, (traj1[-1] + s1_last_dir*10)[np.newaxis]])
+
         sl1_extended = LineString(traj1_extended.tolist())
         plyg1_extended = Polygon(sl1_extended)
         

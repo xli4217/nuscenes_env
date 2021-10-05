@@ -309,6 +309,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
 
+        #print(action, (self.all_info['ego_speed'], self.all_info['ego_yaw_rate']))
         #### render ####
         fig, ax = None, None
         if len(self.config['render_type']) > 0:

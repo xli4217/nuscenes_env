@@ -162,19 +162,21 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         # Filtering #
         #############
         #### filter categories ####
-        filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))]
-        if filtered_df is None:
-            return None
-        filtered_df.reset_index(drop=True, inplace=True)
-        
+        if len(keep_categories) > 0:
+            filtered_df = filtered_df[filtered_df.instance_category.str.contains('|'.join(keep_categories))]
+            if filtered_df is None:
+                return None
+            filtered_df.reset_index(drop=True, inplace=True)
+            
         #### filter attributes ####
         
         ### filter scenarios ####
-        filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
-        if filtered_df is None:
-            return None
-        filtered_df.reset_index(drop=True, inplace=True)
-        
+        if len(keep_scenarios) > 0:
+            filtered_df = class_from_path(scenario_filter)(filtered_df, keep_scenarios)
+            if filtered_df is None:
+                return None
+            filtered_df.reset_index(drop=True, inplace=True)
+            
         ##########################
         # Process type and shape #
         ##########################
@@ -202,7 +204,6 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #### add interactions ####
         filtered_df = interaction_filter(filtered_df)
         filtered_df.reset_index(drop=True, inplace=True)
-        
         ##########################
         # save filtered_scene_df #
         ##########################

@@ -107,10 +107,12 @@ def get_config(dataset_type='full',
                 'categories': ['vehicle'],
                 'attributes': ['stopped', 'moving'],
                 'scenarios': ['intersection'],
+                #'attributes': [],
+                #'scenarios': [],
                 'scenario_filter': 'create_dataset.filters.scenario_filters.scenario_filter',
                 'obs_steps': 6,
                 'pred_steps': 6,
-                'nb_closest_neighbors': 3,
+                'nb_closest_neighbors': 5,
                 'max_neighbor_range': 40
             },
             'process_once_func': 'create_dataset.process_filtered.process_once'
