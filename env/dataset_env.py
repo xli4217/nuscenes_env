@@ -45,6 +45,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.config = {
             'NuScenesAgent_config':{},
             'data_dir': None,
+            'full_data_path': None,
             'data_type': 'scene', # this can be 'train' or 'scene'
             'raster_dir': None,
             'SceneGraphics_config': {},
@@ -95,12 +96,17 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'sim_ego_raster_image': None,
             'sim_ego_yaw_rate': None
         }
-       
+    
+        self.full_data = None       
         if self.config['data_type'] == 'train':
             train_df = pd.read_pickle(self.config['data_dir'] + 'train.pkl')
             val_df = pd.read_pickle(self.config['data_dir'] + 'val.pkl')
             self.df = pd.concat([train_df, val_df])
             print(get_dataframe_summary(self.df))
+            if self.config['full_data_path'] is not None:
+                self.full_data = pd.read_pickle(self.config['full_data_path'])
+                print(f'Loaded full data from {self.config["full_data_path"]}')
+                print(f"full data shape {self.full_data.shape}")
             
     def set_adapt_one_row_func(self, func=None):
         self.adapt_one_row = func
@@ -130,14 +136,13 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         
         # TODO: temp hack for icra prediction #
-        self.all_info['gnn_data'] = gnn_adapt_one_df_row(self.r)
         if self.adapt_one_row is not None:
             config = {
                 'obs_len': 4,
                 'pred_len':6
             }
             self.config.update(config)
-            self.all_info['adapt_one_row_data'] = self.adapt_one_row(self.r, self.config)[0]
+            self.all_info['adapt_one_row_data'] = self.adapt_one_row(self.r, self.config, full_df=self.full_data)[0]
         #######################################
         
         sim_ego_pose = {
@@ -288,7 +293,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         
         if 'lanes' in self.config['render_elements']:
             ks = list(self.r.keys())
-            if 'past_agent_lane' in ks:
+            ''' if 'past_agent_lane' in ks:
                 past_agent_lane = self.r['past_agent_lane']
                 ax.plot(past_agent_lane[:,0], past_agent_lane[:,1], linestyle='-.', color='grey', linewidth=2, zorder=750)
                 
@@ -300,7 +305,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                 ax.plot(pl[:,0], pl[:,1], linestyle='-.', color='grey', linewidth=1, zorder=750)
             
             for fl in self.r.future_neighbor_lane:
-                ax.plot(fl[:,0], fl[:,1], linestyle='-.', color='green', linewidth=2, zorder=750)
+                ax.plot(fl[:,0], fl[:,1], linestyle='-.', color='green', linewidth=2, zorder=750) '''
             
             
         return fig, ax, other

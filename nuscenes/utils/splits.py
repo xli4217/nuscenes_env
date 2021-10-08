@@ -149,16 +149,18 @@ test = \
 
 
 ##### mini #####
-mini_train = ['scene-0061', 'scene-0103', 'scene-0655', 'scene-0553', 'scene-0757', 'scene-0796', 'scene-0916']
+mini_train = ['scene-0061', 'scene-0103', 'scene-0655', 'scene-0553', 
+              'scene-0757', 'scene-0796', 'scene-0916']
 
 mini_val = ['scene-1077', 'scene-1094', 'scene-1100']
 
 ##### mini full #####
-mini_full_train = ['scene-0061', 'scene-0103', 'scene-0655', 'scene-0553', 'scene-0757', 'scene-0796', 'scene-0916',
-              'scene-0095', 'scene-0106', 'scene-0276', 'scene_0345', 'scene_0521']
+mini_full_train = ['scene-0061', 'scene-0103', 'scene-0655', 
+                   'scene-0553', 'scene-0757', 'scene-0796', 
+                   'scene-0916', 'scene-0095', 'scene-0106', 
+                   'scene-0276', 'scene_0345', 'scene_0521']
 
-mini_full_val = ['scene-1094', 'scene-1100',
-            'scene-0552', 'scene-0095', 'scene-0276', 'scene-0345']
+mini_full_val = ['scene-1094', 'scene-1100', 'scene-0552', 'scene-0095', 'scene-0276', 'scene-0345']
 
 
 def create_splits_logs(split: str, nusc: 'NuScenes') -> List[str]:
