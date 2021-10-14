@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 from typing import List, Tuple, Dict, Union
+from PIL import Image
 
 from nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
@@ -18,7 +19,7 @@ from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 
 
-from utils.utils import assert_tensor, convert_local_coords_to_global, convert_global_coords_to_local, assert_tensor, get_dataframe_summary
+from utils.utils import assert_tensor, convert_local_coords_to_global, convert_global_coords_to_local, assert_tensor, get_dataframe_summary, calculate_steering
 from utils.transformations import *
 
 from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D, process_to_len
@@ -108,6 +109,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                 print(f'Loaded full data from {self.config["full_data_path"]}')
                 print(f"full data shape {self.full_data.shape}")
             
+    
     def set_adapt_one_row_func(self, func=None):
         self.adapt_one_row = func
         
@@ -134,17 +136,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_yaw_rad'] = angle_of_rotation(quaternion_yaw(sim_ego_yaw))
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
-        
-        # TODO: temp hack for icra prediction #
-        if self.adapt_one_row is not None:
-            config = {
-                'obs_len': 4,
-                'pred_len':6
-            }
-            self.config.update(config)
-            self.all_info['adapt_one_row_data'] = self.adapt_one_row(self.r, self.config, full_df=self.full_data)[0]
-        #######################################
-        
         sim_ego_pose = {
             'translation': self.sim_ego_pos_gb,
             'rotation': self.sim_ego_quat_gb
@@ -156,7 +147,34 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
-    
+        self.all_info['sim_ego_goal'] = self.sim_ego_goal
+        
+        # histories #
+        self.sim_ego_raster_image_history.append(sim_ego_raster_img)
+        self.all_info['sim_ego_raster_image_history'] = self.sim_ego_raster_image_history
+        self.sim_ego_pos_history.append(self.sim_ego_pos_gb)
+        self.all_info['sim_ego_pos_history'] = self.sim_ego_pos_history
+        self.sim_ego_quat_history.append(self.sim_ego_quat_gb)
+        self.all_info['sim_ego_quat_history'] = self.sim_ego_quat_history
+        self.sim_ego_speed_history.append(self.sim_ego_speed)
+        self.all_info['sim_ego_speed_history'] = self.sim_ego_speed_history
+        self.sim_ego_steering_history.append(self.sim_ego_yaw_rate)
+        self.all_info['sim_ego_steering_history'] = self.sim_ego_steering_history
+        
+        if self.adapt_one_row is not None:
+            config = {
+                'obs_len': 4,
+                'pred_len':6,
+                'raster_dir': self.config['raster_dir']
+            }
+            self.config.update(config)
+            self.all_info['adapt_one_row_data'] = self.adapt_one_row(self.r, 
+                                                                     self.config, 
+                                                                     obs=self.all_info,
+                                                                     full_df=self.full_data, 
+                                                                     sim_ego_raster_img_history=self.sim_ego_raster_image_history)[0]
+        
+            
     def update_row(self, instance_token, sample_idx=None):
         # get the correct row
         self.r = self.instance_df[self.instance_df.sample_idx==sample_idx].iloc[0]
@@ -190,6 +208,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         if 'current_agent_steering' not in list(self.scene_data.keys()):
             return None
             
+        # currents #
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
         self.sample_token = self.instance_sample_token_list[self.df_idx]
         self.update_row(self.instance_token, self.sample_idx)
@@ -200,6 +219,25 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.sim_ego_yaw_rate = self.r.current_agent_steering
         self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         
+        # histories #
+        past_raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], str(p)))) for p in self.r.past_agent_raster_path])
+        self.sim_ego_raster_image_history = [r for r in past_raster]
+        self.sim_ego_goal = self.scene_data.current_agent_pos.tolist()[-1]
+        self.sim_ego_pos_history = self.scene_data.current_agent_pos.tolist()
+        self.sim_ego_quat_history = self.scene_data.current_agent_quat.tolist()
+        self.sim_ego_speed_history = self.scene_data.current_agent_speed.tolist()
+        
+        csteering, psteering, fsteering = calculate_steering(self.r.agent_token,
+                                                            current_steering=self.r.current_agent_steering,
+                                                            past_steering=self.r.past_agent_steering,
+                                                            future_steering=self.r.future_agent_steering,
+                                                            current_quat=self.r.current_agent_quat,
+                                                            past_quat=self.r.past_agent_quat,
+                                                            future_quat=self.r.future_agent_quat)
+
+        
+        self.sim_ego_steering_history = psteering 
+               
         self.update_all_info()
         return self.get_observation()
         

@@ -20,6 +20,59 @@ import os
 #display = Display(visible=0, size=(1400, 900))
 #display.start()
 
+def calculate_steering(agent_token,
+                       current_steering=None,
+                       past_steering=None,
+                       future_steering=None,
+                       current_quat=None,
+                       past_quat=None,
+                       future_quat=None):
+    
+    
+    
+    if agent_token == 'ego':
+        if isinstance(current_steering, np.ndarray):
+            current_steering = current_steering[0]
+            csteering_idx = len(past_steering)
+        if not isinstance(past_steering, list) and not isinstance(past_steering, np.ndarray):
+            if np.isnan(past_steering):
+                past_steering = [0,0,0,0]
+                csteering_idx = 4
+        if not isinstance(future_steering, list) and not isinstance(future_steering, np.ndarray):
+            if np.isnan(future_steering):
+                future_steering = [0,0,0,0,0,0]
+                
+        past_steering = list(past_steering)
+        future_steering = list(future_steering)
+        steering = past_steering + [current_steering] + future_steering
+    else:
+        ado_heading = []
+
+        ql = past_quat.tolist() + [current_quat.tolist()] + future_quat.tolist()
+
+        for q in ql:
+            #### convert from global quat to local steering ####
+            yaw = Quaternion(q)
+            yaw = quaternion_yaw(yaw)
+            ado_heading.append(-angle_of_rotation(yaw))
+            
+        ado_heading = np.array(ado_heading)
+        steering = ((ado_heading[1:] - ado_heading[:-1])/0.5)
+    
+    steering_n = []
+    for s in steering:
+        if np.isnan(s):
+            steering_n.append(0)
+        else:
+            steering_n.append(s)
+
+    csteering = steering_n[csteering_idx]
+    psteering = [0] + steering_n[:csteering_idx]
+    fsteering = steering_n[csteering_idx:]
+
+    return csteering, psteering, fsteering
+
+
 def populate_dictionary(d, key, val, val_type, val_shape, populate_func='append'):
     assert_type_and_shape(val, key, val_type, val_shape)
     if populate_func == 'append':
