@@ -79,24 +79,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.scene_list = [str(p).split('/')[-1] for p in Path(self.config['data_dir']).rglob('*.pkl')]
         
         #### Initialize ####
-        self.all_info = {
-            #### dataset ego ####
-            'ego_pos_gb': None,
-            'ego_quat_gb': None,
-            'ego_pos_traj': None,
-            'ego_speed': None,
-            'ego_raster_image': None,
-            'ego_yaw_rate': None,
-            'past_ego_pos': None,
-            #### simulated ego ####
-            'sim_ego_pos_gb': None,
-            'sim_ego_quat_gb': None,
-            'sim_ego_yaw_rad': None,
-            'sim_ego_pos_traj': None,
-            'sim_ego_speed': None,
-            'sim_ego_raster_image': None,
-            'sim_ego_yaw_rate': None
-        }
+        self.all_info = {}
     
         self.full_data = None       
         if self.config['data_type'] == 'train':
@@ -128,7 +111,8 @@ class NuScenesDatasetEnv(NuScenesAgent):
         
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
-    
+        self.all_info['current_ego_neighbor_pos'] = self.r.current_neighbor_pos
+        
         #### Sim Ego ####
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
@@ -148,6 +132,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
         self.all_info['sim_ego_goal'] = self.sim_ego_goal
+        self.all_info['current_sim_ego_neighbor_pos'] = self.r.current_neighbor_pos
         
         # histories #
         self.sim_ego_raster_image_history.append(sim_ego_raster_img)
@@ -205,8 +190,18 @@ class NuScenesDatasetEnv(NuScenesAgent):
         else:
             self.df_idx = 0
 
-        if 'current_agent_steering' not in list(self.scene_data.keys()):
-            return None
+        self.update_row(instance_token,self.instance_sample_idx_list[self.df_idx])
+        
+        if 'current_agent_steering' in self.scene_data.keys(): 
+            csteering, psteering, fsteering = calculate_steering(self.r.agent_token,
+                                                                current_steering=self.r.current_agent_steering,
+                                                                past_steering=self.r.past_agent_steering,
+                                                                future_steering=self.r.future_agent_steering,
+                                                                current_quat=self.r.current_agent_quat,
+                                                                past_quat=self.r.past_agent_quat,
+                                                                future_quat=self.r.future_agent_quat)
+        else:
+            return None            
             
         # currents #
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
@@ -216,7 +211,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.sim_ego_pos_gb = self.r.current_agent_pos
         self.sim_ego_quat_gb = self.r.current_agent_quat
         self.sim_ego_speed = self.r.current_agent_speed
-        self.sim_ego_yaw_rate = self.r.current_agent_steering
+        self.sim_ego_yaw_rate = csteering
         self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         
         # histories #
@@ -226,16 +221,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.sim_ego_pos_history = self.scene_data.current_agent_pos.tolist()
         self.sim_ego_quat_history = self.scene_data.current_agent_quat.tolist()
         self.sim_ego_speed_history = self.scene_data.current_agent_speed.tolist()
-        
-        csteering, psteering, fsteering = calculate_steering(self.r.agent_token,
-                                                            current_steering=self.r.current_agent_steering,
-                                                            past_steering=self.r.past_agent_steering,
-                                                            future_steering=self.r.future_agent_steering,
-                                                            current_quat=self.r.current_agent_quat,
-                                                            past_quat=self.r.past_agent_quat,
-                                                            future_quat=self.r.future_agent_quat)
-
-        
         self.sim_ego_steering_history = psteering 
                
         self.update_all_info()
