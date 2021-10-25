@@ -293,7 +293,6 @@ def make_video_from_images(image_dir:str=None, video_save_dir:str=None, video_la
             }
 
         img_fn_list = [str(p).split('/')[-1] for p in Path(image_dir).rglob('*.png')]
-
         component_img_list = {}
         for k, v in video_layout['components'].items():
             img_list = [p for p in img_fn_list if k in p and 'checkpoint' not in p]
