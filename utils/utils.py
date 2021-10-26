@@ -34,10 +34,11 @@ def calculate_steering(agent_token,
         if isinstance(current_steering, np.ndarray):
             current_steering = current_steering[0]
             csteering_idx = len(past_steering)
+        else:
+            csteering_idx = 4
         if not isinstance(past_steering, list) and not isinstance(past_steering, np.ndarray):
             if np.isnan(past_steering):
                 past_steering = [0,0,0,0]
-                csteering_idx = 4
         if not isinstance(future_steering, list) and not isinstance(future_steering, np.ndarray):
             if np.isnan(future_steering):
                 future_steering = [0,0,0,0,0,0]
@@ -49,7 +50,7 @@ def calculate_steering(agent_token,
         ado_heading = []
 
         ql = past_quat.tolist() + [current_quat.tolist()] + future_quat.tolist()
-
+        csteering_idx = len(past_steering.tolist())
         for q in ql:
             #### convert from global quat to local steering ####
             yaw = Quaternion(q)
