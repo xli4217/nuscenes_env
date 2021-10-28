@@ -168,7 +168,6 @@ def add_row(df_dict, r, sample_df, scene_name, sample_idx, ego_or_ado='ado', nb_
     df_dict = populate_dictionary(df_dict, 'past_neighbor_quat', past_neighbor_quat, np.ndarray, (nb_closest_neighbors, obs_steps, 4), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'future_neighbor_quat', future_neighbor_quat, np.ndarray, (nb_closest_neighbors, pred_steps, 4), populate_func='append')
 
-
     df_dict = populate_dictionary(df_dict, 'current_neighbor_speed', current_neighbor_speed, np.ndarray, (nb_closest_neighbors, ), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'past_neighbor_speed', past_neighbor_speed, np.ndarray, (nb_closest_neighbors, obs_steps), populate_func='append')
     df_dict = populate_dictionary(df_dict, 'future_neighbor_speed', future_neighbor_speed, np.ndarray, (nb_closest_neighbors, pred_steps), populate_func='append')
@@ -250,6 +249,10 @@ def final_data_processor(df, config={}):
         'current_neighbor_raster_path':[],   # list[str]
         'past_neighbor_raster_path':[],      # list[list[str]]
         'future_neighbor_raster_path':[]    # list[list[str]]
+
+        #'current_neighbor_road_objects':[],   # list[dict]
+        #'past_neighbor_road_objects':[],      # list[list[dict]]
+        #'future_neighbor_road_objects':[]    # list[list[dict]]
 
     }
     

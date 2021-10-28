@@ -36,10 +36,10 @@ def calculate_steering(agent_token,
             csteering_idx = len(past_steering)
         else:
             csteering_idx = 4
-        if not isinstance(past_steering, list) and not isinstance(past_steering, np.ndarray):
+        if not isinstance(past_steering, list) and not isinstance(past_steering, np.ndarray) and past_steering is not None:
             if np.isnan(past_steering):
                 past_steering = [0,0,0,0]
-        if not isinstance(future_steering, list) and not isinstance(future_steering, np.ndarray):
+        if not isinstance(future_steering, list) and not isinstance(future_steering, np.ndarray) and future_steering is not None:
             if np.isnan(future_steering):
                 future_steering = [0,0,0,0,0,0]
                 
