@@ -38,6 +38,9 @@ from .env_utils import *
 from .env_render import render
 
 from task_specific.dataset_adapter import gnn_adapt_one_df_row
+from rich.console import Console; console = Console(); print = console.print
+
+from paths import *
 
 class NuScenesDatasetEnv(NuScenesAgent):
 
@@ -112,7 +115,12 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
         self.all_info['current_ego_neighbor_pos'] = self.r.current_neighbor_pos
-        
+        self.all_info['ego_future_lanes'] = get_future_lanes(self.map, 
+                                                             self.r.current_agent_pos, 
+                                                             self.r.current_agent_quat, 
+                                                             frame='global',
+                                                             ego_speed=4)
+                
         #### Sim Ego ####
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
@@ -133,18 +141,27 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
         self.all_info['sim_ego_goal'] = self.sim_ego_goal
         self.all_info['current_sim_ego_neighbor_pos'] = self.r.current_neighbor_pos
+        self.all_info['sim_ego_future_lanes'] = get_future_lanes(self.map, 
+                                                                 self.sim_ego_pos_gb, 
+                                                                 self.sim_ego_quat_gb, 
+                                                                 frame='global',
+                                                                 ego_speed=4)
+                                                                 
         
         # histories #
         self.sim_ego_raster_image_history.append(sim_ego_raster_img)
         self.all_info['sim_ego_raster_image_history'] = self.sim_ego_raster_image_history
-        self.sim_ego_pos_history.append(self.sim_ego_pos_gb)
+        self.sim_ego_pos_history.append(np.array(self.sim_ego_pos_gb))
         self.all_info['sim_ego_pos_history'] = self.sim_ego_pos_history
-        self.sim_ego_quat_history.append(self.sim_ego_quat_gb)
+        self.sim_ego_quat_history.append(np.array(self.sim_ego_quat_gb))
         self.all_info['sim_ego_quat_history'] = self.sim_ego_quat_history
-        self.sim_ego_speed_history.append(self.sim_ego_speed)
+        self.sim_ego_speed_history.append(np.array(self.sim_ego_speed))
         self.all_info['sim_ego_speed_history'] = self.sim_ego_speed_history
-        self.sim_ego_steering_history.append(self.sim_ego_yaw_rate)
+        self.sim_ego_steering_history.append(np.array(self.sim_ego_yaw_rate))
         self.all_info['sim_ego_steering_history'] = self.sim_ego_steering_history
+        #print(self.all_info['sim_ego_steering_history'])
+        #print(self.all_info['sim_ego_speed_history'])
+        #print("------")
         
         if self.adapt_one_row is not None:
             config = {
@@ -207,6 +224,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
         self.sample_token = self.instance_sample_token_list[self.df_idx]
         self.update_row(self.instance_token, self.sample_idx)
+        self.map = NuScenesMap(dataroot=mini_path, map_name=self.r.scene_location)
         
         self.sim_ego_pos_gb = self.r.current_agent_pos
         self.sim_ego_quat_gb = self.r.current_agent_quat
@@ -315,6 +333,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                     plot_text_box(ax, interaction_name+" "+a2_token[:4], a1_pos+agent_height_dict[a1_token])
         
         if 'lanes' in self.config['render_elements']:
+            #ax.plot(self.all_info['sim_ego_future_lanes'][0][:10,], self.all_info['sim_ego_future_lanes'][0][:10,:], linestyle='-.', color='grey', linewidth=2, zorder=750)            
             ks = list(self.r.keys())
             ''' if 'past_agent_lane' in ks:
                 past_agent_lane = self.r['past_agent_lane']
@@ -336,10 +355,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
     def step(self, action=None, render_info={}, save_img_dir=None):
         if self.py_logger is not None:
             self.py_logger.debug(f"received action: {action}")
-
+        
         #print(action, (self.all_info['ego_speed'], self.all_info['ego_yaw_rate']))
         #### render ####
         fig, ax = None, None
+        render_other = {}
         if len(self.config['render_type']) > 0:
             fig, ax, render_other = self.render(render_info, save_img_dir)
 
