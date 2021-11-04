@@ -50,7 +50,7 @@ def calculate_steering(agent_token,
         ado_heading = []
 
         ql = past_quat.tolist() + [current_quat.tolist()] + future_quat.tolist()
-        csteering_idx = len(past_steering.tolist())
+        csteering_idx = len(past_quat.tolist())
         for q in ql:
             #### convert from global quat to local steering ####
             yaw = Quaternion(q)
