@@ -236,11 +236,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
         past_raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], str(p)))) for p in self.r.past_agent_raster_path])
         self.sim_ego_raster_image_history = [r for r in past_raster]
         self.sim_ego_goal = self.scene_data.current_agent_pos.tolist()[-1]
-        self.sim_ego_pos_history = self.scene_data.current_agent_pos.tolist()
-        self.sim_ego_quat_history = self.scene_data.current_agent_quat.tolist()
-        self.sim_ego_speed_history = self.scene_data.current_agent_speed.tolist()
+        self.sim_ego_pos_history = self.scene_data.iloc[0].past_agent_pos.tolist() + self.scene_data.current_agent_pos.tolist()[:self.df_idx+1]
+        self.sim_ego_quat_history = self.scene_data.iloc[0].past_agent_quat.tolist() + self.scene_data.current_agent_quat.tolist()[:self.df_idx+1]
+        self.sim_ego_speed_history = self.scene_data.iloc[0].past_agent_speed.tolist() + self.scene_data.current_agent_speed.tolist()[:self.df_idx+1]
         self.sim_ego_steering_history = psteering 
-               
+        
         self.update_all_info()
         return self.get_observation()
         

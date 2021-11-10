@@ -11,6 +11,10 @@ def get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame
 
     lane_discretized_pos_global = np.array(arcline_path_utils.discretize_lane(lane_record, resolution_meters=ego_speed))
     #if lane_discretized_pos_global.ndim == 2:
+    
+    if lane_discretized_pos_global is None or lane_discretized_pos_global.ndim == 0:
+        lane_discretized_pos_global = np.repeat(np.array(ego_pos)[np.newaxis,:], 10, axis=0)
+    
     lane_discretized_pos_global = lane_discretized_pos_global[:,:2]
     # else:
     #     # here !!!!!!!!!
@@ -55,10 +59,14 @@ def get_future_lanes(nusc_map, ego_pos, ego_quat, frame='global', ego_speed=2):
     # concatenate closest lane with all outgoing lanes
     ego_future_lanes = np.zeros((5, 500, 2)) # (max number of possible future lanes, points on the lanes, (x,y))
     outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane)
-    for idx, lane in enumerate(outgoing_lane_ids):
-        lane_record = nusc_map.get_lane(lane)
-        outgoing_lane_local = get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame=frame, ego_speed=ego_speed)
-        ego_future_lanes[idx, :closest_lane_local.shape[0], :] = closest_lane_local
-        ego_future_lanes[idx, closest_lane_local.shape[0]:closest_lane_local.shape[0]+outgoing_lane_local.shape[0], :] = outgoing_lane_local
-
+    if outgoing_lane_ids is not None:
+        for idx, lane in enumerate(outgoing_lane_ids):
+            lane_record = nusc_map.get_lane(lane)
+            outgoing_lane_local = get_discretized_future_lanes(ego_pos, ego_quat, lane_record, nusc_map, frame=frame, ego_speed=ego_speed)
+            ego_future_lanes[idx, :closest_lane_local.shape[0], :] = closest_lane_local
+            ego_future_lanes[idx, closest_lane_local.shape[0]:closest_lane_local.shape[0]+outgoing_lane_local.shape[0], :] = outgoing_lane_local
+    else:
+        for i in range(ego_future_lanes.shape[0]):
+            ego_future_lanes[i, :closest_lane_local.shape[0], :] = closest_lane_local
+    
     return ego_future_lanes
