@@ -69,4 +69,12 @@ def get_future_lanes(nusc_map, ego_pos, ego_quat, frame='global', ego_speed=2):
         for i in range(ego_future_lanes.shape[0]):
             ego_future_lanes[i, :closest_lane_local.shape[0], :] = closest_lane_local
     
-    return ego_future_lanes
+    processed_ego_future_lanes = []
+    for i in range(ego_future_lanes.shape[0]): # get rid of outliers
+        tmp = ego_future_lanes[i, :, :]
+        for j in range(tmp.shape[0]):
+            if abs(np.linalg.norm(tmp[j,:]) - np.linalg.norm(tmp[0])) > 100:
+                tmp[j] = tmp[j-1]
+        processed_ego_future_lanes.append(tmp)
+    return np.array(processed_ego_future_lanes)
+    

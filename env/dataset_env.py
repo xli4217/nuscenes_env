@@ -106,6 +106,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.update_row(self.instance_token, self.sample_idx)
         
         #### Dataset Ego ####
+        self.all_info['sample_idx'] = self.sample_idx
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
         self.all_info['ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
@@ -181,7 +182,16 @@ class NuScenesDatasetEnv(NuScenesAgent):
         # get the correct row
         self.r = self.instance_df[self.instance_df.sample_idx==sample_idx].iloc[0]
             
-    def reset(self, scene_name=None, instance_token='ego', sample_token=None,  sample_idx=None):
+    def reset(self, 
+              scene_name=None, 
+              instance_token='ego', 
+              sample_token=None,  
+              sample_idx=None,
+              sim_ego_pos=None,
+              sim_ego_quat=None,
+              sim_ego_speed=None,
+              sim_ego_steering=None
+            ):
         if scene_name is None:
             scene_idx = np.random.choice(len(self.scene_list))
             self.scene_name = self.scene_list[scene_idx][:-4]
@@ -226,10 +236,22 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.update_row(self.instance_token, self.sample_idx)
         self.map = NuScenesMap(dataroot=mini_path, map_name=self.r.scene_location)
         
-        self.sim_ego_pos_gb = self.r.current_agent_pos
-        self.sim_ego_quat_gb = self.r.current_agent_quat
-        self.sim_ego_speed = self.r.current_agent_speed
-        self.sim_ego_yaw_rate = csteering
+        if sim_ego_pos is None:
+            self.sim_ego_pos_gb = self.r.current_agent_pos
+        else:
+            self.sim_ego_pos_gb = sim_ego_pos
+        if sim_ego_quat is None:
+            self.sim_ego_quat_gb = self.r.current_agent_quat
+        else:
+            self.sim_ego_quat_gb = sim_ego_quat
+        if sim_ego_speed is None:
+            self.sim_ego_speed = self.r.current_agent_speed
+        else:
+            self.sim_ego_speed = sim_ego_speed
+        if sim_ego_steering is None:
+            self.sim_ego_yaw_rate = csteering
+        else:
+            self.sim_ego_yaw_rate = sim_ego_steering
         self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         
         # histories #
@@ -385,7 +407,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
             self.sim_ego_yaw += self.sim_ego_yaw_rate * 0.5
             q = Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw))
-            self.sim_ego_quat_gb = [q[0], q[1], q[2], q[3]]
+            self.sim_ego_quat_gb = np.array([q[0], q[1], q[2], q[3]])
 
 
         self.df_idx += 1
