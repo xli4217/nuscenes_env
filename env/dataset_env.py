@@ -55,10 +55,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'SceneGraphics_config': {},
             'render_paper_ready': False,
             'render_type': [],
+            'all_info_fields': ['raster_image'],
             'render_elements': ['sim_ego'],# can contain ['groundtruth','token_labels', 'interaction_labels ,'sim_ego', 'human_ego', 'control_plots', 'risk_map', 'lanes']
             'patch_margin': 30,
             'save_image_dir': None,
-            'control_mode': 'position'
+            'control_mode': 'position' # this can be 'position' or 'kinematics' or 'trajectory'
         }
 
         self.config.update(config)
@@ -134,11 +135,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
             'rotation': self.sim_ego_quat_gb
         }
 
-        sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
-
-        #sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
-
-        self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
+        if self.rasterizer is not None:
+            sim_ego_raster_img = self.rasterizer.make_input_representation(instance_token=None, sample_token=self.sample_token, ego=True, ego_pose=sim_ego_pose, include_history=False)
+            #sim_ego_raster_img = np.transpose(sim_ego_raster_img, (2,0,1))
+            self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
+            
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
         self.all_info['sim_ego_goal'] = self.sim_ego_goal
         self.all_info['current_sim_ego_neighbor_pos'] = self.r.current_neighbor_pos
@@ -150,8 +151,9 @@ class NuScenesDatasetEnv(NuScenesAgent):
                                                                  
         
         # histories #
-        self.sim_ego_raster_image_history.append(sim_ego_raster_img)
-        self.all_info['sim_ego_raster_image_history'] = self.sim_ego_raster_image_history
+        if self.rasterizer is not None:
+            self.sim_ego_raster_image_history.append(sim_ego_raster_img)
+            self.all_info['sim_ego_raster_image_history'] = self.sim_ego_raster_image_history
         self.sim_ego_pos_history.append(np.array(self.sim_ego_pos_gb))
         self.all_info['sim_ego_pos_history'] = self.sim_ego_pos_history
         self.sim_ego_quat_history.append(np.array(self.sim_ego_quat_gb))
@@ -253,6 +255,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
         else:
             self.sim_ego_yaw_rate = sim_ego_steering
         self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
+        
+        ''' for q in self.r.future_agent_quat:
+            print(quaternion_yaw(Quaternion(q)))
+        print(self.r.future_agent_steering)
+        print(self.r.future_agent_speed) '''
         
         # histories #
         past_raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], str(p)))) for p in self.r.past_agent_raster_path])
@@ -393,9 +400,17 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
 
         if self.config['control_mode'] == 'position' and action is not None:
+            direction = action - self.sim_ego_pos_gb
+            heading = np.arctan2(direction[1], direction[0])
+            self.sim_ego_yaw = heading
+            q = Quaternion(axis=[0,0,1], angle=heading)
+            #self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
+            self.sim_ego_quat_gb = np.array([q[0], q[1], q[2], q[3]])
             self.sim_ego_pos_gb = action
-            self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
-        
+            
+        #if self.config['control_mode'] == 'trajectory' and action is not None:
+        #    self.sim_ego_pos_gb = action[0]
+            
         if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
             self.sim_ego_speed = action[0]

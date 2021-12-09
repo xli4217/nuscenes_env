@@ -67,7 +67,7 @@ def render(graphics, render_info, config={}):
             costmap_contour = render_info['costmap_contour']
 
         other_images_to_be_saved = None
-        if render_info['all_info']['sim_ego_raster_image'] is not None:
+        if 'sim_ego_raster_image' in render_info['all_info'].keys() and render_info['all_info']['sim_ego_raster_image'] is not None:
             raster =render_info['all_info']['sim_ego_raster_image']
             if raster.shape == (3,250,250):
                 raster = np.transpose(raster, (1,2,0))
