@@ -403,10 +403,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         if self.config['control_mode'] == 'position' and action is not None:
             direction = action - self.sim_ego_pos_gb
+            self.sim_ego_speed = np.linalg.norm(direction) / 0.5
             heading = np.arctan2(direction[1], direction[0])
+            self.sim_ego_yaw_rate = (heading - self.sim_ego_yaw) / 0.5
             self.sim_ego_yaw = heading
             q = Quaternion(axis=[0,0,1], angle=heading)
-            #self.sim_ego_quat_gb = self.all_info['ego_quat_gb']
             self.sim_ego_quat_gb = np.array([q[0], q[1], q[2], q[3]])
             self.sim_ego_pos_gb = action
             
