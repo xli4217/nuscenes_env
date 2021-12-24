@@ -102,7 +102,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         
     def update_all_info(self):
         if self.df_idx >= len(self.instance_sample_idx_list)-1:
-            return 
+            return {}
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
         self.sample_token = self.instance_sample_token_list[self.df_idx]
 
