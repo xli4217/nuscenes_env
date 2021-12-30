@@ -39,7 +39,6 @@ import cloudpickle
 
 from utils.configuration import Configuration
 from celluloid import Camera
-from paths import scene_img_dir 
 
 viz_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -366,6 +365,7 @@ class SceneGraphics(NuScenesAgent):
         #### read from saved path if present ####
         read_img = False
         if read_from_cached:
+            raise NotImplementedError(f'Missing definition of scene_img_dir')
             scene_path = os.path.join(scene_img_dir, scene['name']+"-token-"+sample['scene_token'])
             p_scene = Path(scene_img_dir)
             saved_scene_list = [str(f) for f in p_scene.iterdir() if f.is_dir()]
@@ -384,7 +384,7 @@ class SceneGraphics(NuScenesAgent):
                                                 figsize=(10, 10),
                                                 render_egoposes_range=render_ego_pose_range,
                                                 render_legend=legend,
-                                                fig=bfig,
+                                                figure=bfig,
                                                 axes=bax)
 
 
@@ -460,13 +460,15 @@ class SceneGraphics(NuScenesAgent):
                         for j in range(3):
                             sax[i,j].xaxis.set_visible(False)
                             sax[i,j].yaxis.set_visible(False)
-                            cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, layer_names=layer_names, camera_channel=cam_names[k], ax=sax[i,j])
+                            cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, 
+                                layer_names=layer_names, camera_channel=cam_names[k], axes=sax[i,j], verbose=False)
                             k += 1
                 elif len(cam_names) == 1:
                     sfig, sax = plt.subplots()
                     sax.xaxis.set_visible(False)
                     sax.yaxis.set_visible(False)
-                    cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, layer_names=layer_names, camera_channel=cam_names[k], ax=sax)
+                    cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, 
+                        layer_names=layer_names, camera_channel=cam_names[k], axes=sax, verbose=False)
                 else:
                     raise ValueError('')
                     
@@ -579,6 +581,7 @@ class SceneGraphics(NuScenesAgent):
         if object_type != 'pedestrian':
             r_img = rotate(obj, angle=90, axes=(1,0))
             r_img = rotate(r_img, angle=-heading, axes=(1,0))
+            r_img = np.clip(r_img, a_min=0., a_max=1.)
             if object_type == 'current_car':
                 oi = OffsetImage(r_img, zoom=0.02, zorder=700)
                 color='green'
@@ -660,7 +663,7 @@ class SceneGraphics(NuScenesAgent):
         
     def plot_map_info(self, ax, agent_pos, nusc_map, text_box=True):
         closest_lane_id = nusc_map.get_closest_lane(agent_pos[0], agent_pos[1], radius=2)
-        closest_lane_record = nusc_map.get_lane(closest_lane_id)
+        closest_lane_record = nusc_map.get_arcline_path(closest_lane_id)
 
         closest_lane_poses = np.array(arcline_path_utils.discretize_lane(closest_lane_record, resolution_meters=1))
 
@@ -668,7 +671,7 @@ class SceneGraphics(NuScenesAgent):
         incoming_lane_ids = nusc_map.get_incoming_lane_ids(closest_lane_id)
         incoming_lane_data = []
         for incoming_lane_id in incoming_lane_ids:
-            i_record = nusc_map.get_lane(incoming_lane_id)
+            i_record = nusc_map.get_arcline_path(incoming_lane_id)
             i_poses = np.array(arcline_path_utils.discretize_lane(i_record, resolution_meters=1))
             incoming_lane_data.append({'record': i_record, 'poses': i_poses})
 
@@ -676,7 +679,7 @@ class SceneGraphics(NuScenesAgent):
         outgoing_lane_ids = nusc_map.get_outgoing_lane_ids(closest_lane_id)
         outgoing_lane_data = []
         for outgoing_lane_id in outgoing_lane_ids:
-            o_record = nusc_map.get_lane(outgoing_lane_id)
+            o_record = nusc_map.get_arcline_path(outgoing_lane_id)
             o_poses = np.array(arcline_path_utils.discretize_lane(o_record, resolution_meters=1))
             outgoing_lane_data.append({'record': o_record, 'poses': o_poses})
 

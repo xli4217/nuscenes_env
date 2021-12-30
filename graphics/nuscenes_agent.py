@@ -11,8 +11,10 @@ from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
-from paths import nuscenes_ds_paths, mini_path, full_path
 from utils.configuration import Configuration
+
+mini_path = os.path.join(os.environ['DATA_DIR'], 'v1.0-mini')
+full_path = os.path.join(os.environ['DATA_DIR'], 'v1.0-trainval')
 
 class NuScenesAgent(object):
 

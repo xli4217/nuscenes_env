@@ -29,7 +29,7 @@ def load_all_maps(helper: PredictHelper) -> Dict[str, NuScenesMap]:
     dataroot = helper.data.dataroot
 
     json_files = filter(lambda f: "json" in f and "prediction_scenes" not in f,
-                        os.listdir(os.path.join(dataroot, "maps")))
+                        os.listdir(os.path.join(dataroot, "maps/expansion")))
     maps = {}
 
     for map_file in json_files:

@@ -19,28 +19,28 @@ from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 
 
-from utils.utils import assert_tensor, convert_local_coords_to_global, convert_global_coords_to_local, assert_tensor, get_dataframe_summary, calculate_steering
-from utils.transformations import *
+from utils.utils import convert_local_coords_to_global, convert_global_coords_to_local, assert_tensor, get_dataframe_summary, calculate_steering
 
 from utils.utils import transform_mesh2D, translate_mesh2D, rotate_mesh2D, process_to_len
 
-from graphics.nuscenes_agent import NuScenesAgent
-from graphics.scene_graphics import SceneGraphics
+from ..graphics.nuscenes_agent import NuScenesAgent
+from ..graphics.scene_graphics import SceneGraphics
 import copy
 
-from input_representation.static_layers import StaticLayerRasterizer
-from input_representation.agents import AgentBoxesWithFadedHistory
-from input_representation.interface import InputRepresentation
-from input_representation.combinators import Rasterizer
+from ..input_representation.static_layers import StaticLayerRasterizer
+from ..input_representation.agents import AgentBoxesWithFadedHistory
+from ..input_representation.interface import InputRepresentation
+from ..input_representation.combinators import Rasterizer
 
 from pathlib import Path
 from .env_utils import *
 from .env_render import render
 
-from task_specific.dataset_adapter import gnn_adapt_one_df_row
+from ..task_specific.dataset_adapter import gnn_adapt_one_df_row
 from rich.console import Console; console = Console(); print = console.print
 
-from paths import *
+mini_path = os.path.join(os.environ['DATA_DIR'], 'v1.0-mini')
+full_path = os.path.join(os.environ['DATA_DIR'], 'v1.0-trainval')
 
 class NuScenesDatasetEnv(NuScenesAgent):
 
