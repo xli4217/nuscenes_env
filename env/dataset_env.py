@@ -338,7 +338,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
             # plot ego future #
             ax.plot(self.r.future_agent_pos[:,0], self.r.future_agent_pos[:,1], zorder=800)
  
-            
         if 'token_labels' in self.config['render_elements']:
             #### plot ado instance tokens ####
             plot_text_box(ax, self.r.agent_token[:4], self.r.current_agent_pos[:2]+np.array([0,1.5]), facecolor='red')
