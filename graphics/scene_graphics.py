@@ -291,7 +291,7 @@ class SceneGraphics(NuScenesAgent):
             render_ego_pose_range = False
             plot_agent_trajs=False
             animated_agent=True
-
+        #show_axis = True
         if map_layers is None:
             map_layers = self.map_layers
 
