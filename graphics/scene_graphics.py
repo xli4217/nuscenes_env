@@ -463,17 +463,18 @@ class SceneGraphics(NuScenesAgent):
                             cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, layer_names=layer_names, camera_channel=cam_names[k], ax=sax[i,j])
                             k += 1
                 elif len(cam_names) == 1:
-                    sfig, sax = plt.subplots()
-                    sax.xaxis.set_visible(False)
-                    sax.yaxis.set_visible(False)
-                    cam_fig, cam_ax = nusc_map.render_map_in_image(self.nusc, sample_token, layer_names=layer_names, camera_channel=cam_names[k], ax=sax)
+                    cam_fig, cam_ax = plt.subplots()
+                    cam_ax.xaxis.set_visible(False)
+                    cam_ax.yaxis.set_visible(False)
+                    nusc_map.render_map_in_image(self.nusc, sample_token, layer_names=layer_names, camera_channel=cam_names[k], ax=cam_ax)
                 else:
                     raise ValueError('')
-                    
-            sfig.tight_layout(pad=0)
-            sfig.set_figheight(7)
-            sfig.set_figwidth(15)
             
+            if sfig is not None:
+                sfig.tight_layout(pad=0)
+                sfig.set_figheight(7)
+                sfig.set_figwidth(15)
+                
             # for car_info in road_agents_in_patch['vehicles']:
             #     instance_token = car_info['instance_token']
             #     # render annotations inside patch

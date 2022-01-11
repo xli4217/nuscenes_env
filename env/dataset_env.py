@@ -296,7 +296,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
         render_info['save_image_dir'] = save_img_dir
 
         fig, ax, other =  render(self.graphics, render_info, self.config)
-
         if 'traffic_graph' in self.config['render_elements']:
             all_pos = np.vstack([self.r.current_neighbor_pos, self.r.current_agent_pos])
             for p1 in all_pos:

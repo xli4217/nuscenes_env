@@ -103,6 +103,7 @@ def render(graphics, render_info, config={}):
         if render_info['instance_token'] == 'ego' or render_info['instance_token'] is None:
             ego_centric = True
 
+        plot_list = ['ego', 'other_cars', 'labeled_map', 'sensing_patch', 'sensor_info', 'cam']
         fig, ax, other = graphics.plot_ego_scene( 
             ego_centric=ego_centric,
             sample_token=render_info['sample_token'],
@@ -118,6 +119,7 @@ def render(graphics, render_info, config={}):
             render_additional = render_additional,
             plot_human_ego=plot_human_ego,
             patch_margin=config['patch_margin'],
+            plot_list=plot_list
         )
 
         return fig, ax, other

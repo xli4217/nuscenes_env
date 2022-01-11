@@ -284,7 +284,7 @@ class NuScenesMap:
                             verbose: bool = True,
                             out_path: str = None,
                             ax=None
-    ) -> None:
+    ):
         """
         Render a nuScenes camera image and overlay the polygons for the specified map layers.
         Note that the projections are not always accurate as the localization is in 2d.
@@ -1103,7 +1103,7 @@ class NuScenesMapExplorer:
                             layer_names: List[str] = None,
                             verbose: bool = True,
                             out_path: str = None,
-                            ax = None) -> None:
+                            ax = None):
         """
         Render a nuScenes camera image and overlay the polygons for the specified map layers.
         Note that the projections are not always accurate as the localization is in 2d.
