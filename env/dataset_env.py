@@ -97,7 +97,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                 print(f"full data shape {self.full_data.shape}")
             
     
-    def set_adapt_one_row_func(self, func=None):
+    def set_adapt_one_row_func(self, func=None, *args, **kwargs):
         self.adapt_one_row = func
         
     def update_all_info(self):
