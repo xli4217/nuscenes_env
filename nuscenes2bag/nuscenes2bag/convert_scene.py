@@ -102,22 +102,22 @@ def convert_scene(scene, utils):
             topic = '/' + sensor_id
 
             # write the sensor data
-            if sample_data['sensor_modality'] == 'radar':
-                msg = utils.get_radar(sample_data, sensor_id)
-                bag.write(topic, msg, stamp)
-            elif sample_data['sensor_modality'] == 'lidar':
-                msg = utils.get_lidar(sample_data, sensor_id)
-                bag.write(topic, msg, stamp)
-            elif sample_data['sensor_modality'] == 'camera':
+            # if sample_data['sensor_modality'] == 'radar':
+            #     msg = utils.get_radar(sample_data, sensor_id)
+            #     bag.write(topic, msg, stamp)
+            # elif sample_data['sensor_modality'] == 'lidar':
+            #     msg = utils.get_lidar(sample_data, sensor_id)
+            #     bag.write(topic, msg, stamp)
+            if sample_data['sensor_modality'] == 'camera':
                 msg = utils.get_camera(sample_data, sensor_id)
                 bag.write(topic + '/image_rect_compressed', msg, stamp)
                 msg = utils.get_camera_info(sample_data, sensor_id)
                 bag.write(topic + '/camera_info', msg, stamp)
 
-            if sample_data['sensor_modality'] == 'camera':
-                msg = utils.get_lidar_imagemarkers(sample_lidar, sample_data, sensor_id)
-                bag.write(topic + '/image_markers_lidar', msg, stamp)
-                utils.write_boxes_imagemarkers(bag, cur_sample['anns'], sample_data, sensor_id, topic, stamp)
+            # if sample_data['sensor_modality'] == 'camera':
+            #     msg = utils.get_lidar_imagemarkers(sample_lidar, sample_data, sensor_id)
+            #     bag.write(topic + '/image_markers_lidar', msg, stamp)
+            #     utils.write_boxes_imagemarkers(bag, cur_sample['anns'], sample_data, sensor_id, topic, stamp)
 
         # publish /pose
         pose_stamped = PoseStamped()
@@ -158,6 +158,23 @@ def convert_scene(scene, utils):
             marker.scale.z = ann['size'][2]
             marker.color = utils.make_color(c, 0.5)
             marker_array.markers.append(marker)
+        
+        # ego marker #
+        # marker = Marker()
+        # marker.header.frame_id = 'map'
+        # marker.header.stamp = stamp
+        # marker.id = marker_id
+        # marker.text = 'ego'
+        # marker.type = Marker.CUBE
+        # marker.pose = utils.get_pose(ego_pose)
+        # marker.frame_locked = True
+        # marker.scale.x = 4.3
+        # marker.scale.y = 1.8
+        # marker.scale.z = 1.6
+        # c = [0.1,0.1,0.6]
+        # marker.color = utils.make_color(c, 0.9)
+        # marker_array.markers.append(marker)
+                
         bag.write('/markers/annotations', marker_array, stamp)
 
         # collect all sensor frames after this sample but before the next sample
@@ -173,13 +190,13 @@ def convert_scene(scene, utils):
                 if next_sample_data['is_key_frame']:
                     break
 
-                if next_sample_data['sensor_modality'] == 'radar':
-                    msg = utils.get_radar(next_sample_data, sensor_id)
-                    non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
-                elif next_sample_data['sensor_modality'] == 'lidar':
-                    msg = utils.get_lidar(next_sample_data, sensor_id)
-                    non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
-                elif next_sample_data['sensor_modality'] == 'camera':
+                # if next_sample_data['sensor_modality'] == 'radar':
+                #     msg = utils.get_radar(next_sample_data, sensor_id)
+                #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
+                # elif next_sample_data['sensor_modality'] == 'lidar':
+                #     msg = utils.get_lidar(next_sample_data, sensor_id)
+                #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
+                if next_sample_data['sensor_modality'] == 'camera':
                     msg = utils.get_camera(next_sample_data, sensor_id)
                     camera_stamp_nsec = msg.header.stamp.to_nsec()
                     non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/image_rect_compressed', msg))
@@ -187,13 +204,13 @@ def convert_scene(scene, utils):
                     msg = utils.get_camera_info(next_sample_data, sensor_id)
                     non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/camera_info', msg))
 
-                    closest_lidar = utils.find_closest_lidar(cur_sample['data']['LIDAR_TOP'], camera_stamp_nsec)
-                    if closest_lidar is not None:
-                        msg = utils.get_lidar_imagemarkers(closest_lidar, next_sample_data, sensor_id)
-                        non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic + '/image_markers_lidar', msg))
-                    else:
-                        msg = utils.get_remove_imagemarkers(sensor_id, 'LIDAR_TOP', msg.header.stamp)
-                        non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic + '/image_markers_lidar', msg))
+                    # closest_lidar = utils.find_closest_lidar(cur_sample['data']['LIDAR_TOP'], camera_stamp_nsec)
+                    # if closest_lidar is not None:
+                    #     msg = utils.get_lidar_imagemarkers(closest_lidar, next_sample_data, sensor_id)
+                    #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic + '/image_markers_lidar', msg))
+                    # else:
+                    #     msg = utils.get_remove_imagemarkers(sensor_id, 'LIDAR_TOP', msg.header.stamp)
+                    #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic + '/image_markers_lidar', msg))
 
                     # Delete all image markers on non-keyframe camera images
                     # msg = get_remove_imagemarkers(sensor_id, 'LIDAR_TOP', msg.header.stamp)
