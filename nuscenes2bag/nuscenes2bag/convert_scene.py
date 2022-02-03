@@ -58,11 +58,14 @@ def load_experiment_rollout_data(experiment_path: str):
     
     #### ego ####
     d = cloudpickle.load(open(os.path.join(experiment_path, 'eval_data', 'scene-0061.pkl'), 'rb'))
-    ##################### break point #####################
-    from rich.console import Console; console = Console()
-    console.log('log', log_locals=False)
-    import ipdb; ipdb.set_trace()
-    ########################################################
+    sim_ego_pos = {}
+    sim_ego_quat = {}
+    for obs in d['obs']:
+        sim_ego_pos[obs['sample_idx']] = obs['sim_ego_pos_gb'].tolist() + [0.01] 
+        sim_ego_quat[obs['sample_idx']] = obs['sim_ego_quat_gb'].tolist()
+    
+    experiment_result_dict['sim_ego_pos'] = sim_ego_pos
+    experiment_result_dict['sim_ego_quat'] = sim_ego_quat
     
     return experiment_result_dict
             
@@ -108,7 +111,57 @@ def convert_scene(scene, utils, dataroot,  *args, **kwargs):
         sample_lidar = nusc.get('sample_data', cur_sample['data']['LIDAR_TOP'])
         ego_pose = nusc.get('ego_pose', sample_lidar['ego_pose_token'])
         stamp = utils.get_time(ego_pose)
+        
+        #### write experiment_result to bag ####
+        if experiment_result_dict is not None:
+            # figures #
+            for k,v in experiment_result_dict['figures'].items():
+                if idx in v.keys():
+                    png = v[idx]
+                    msg = CompressedImage()
+                    msg.header.frame_id = k
+                    msg.header.stamp = stamp
+                    msg.format = 'png'
+                    msg.data = png
+                    bag.write("/"+k+'/image_rect_compressed', msg, stamp)
+                
+            if idx in experiment_result_dict['sim_ego_pos'].keys():
+                ego_pose = {
+                    'translation': experiment_result_dict['sim_ego_pos'][idx],
+                    'rotation': experiment_result_dict['sim_ego_quat'][idx],
+                    'token': ego_pose['token'],
+                    'timestamp': ego_pose['timestamp']
+                }
+                
+                if idx == list(experiment_result_dict['sim_ego_pos'].keys())[-1]:
+                    next_idx = idx
+                    break
+                else:
+                    next_idx = idx+1
+                next_sample = utils.nusc.get('sample',cur_sample['next'])
+                sample_lidar = utils.nusc.get('sample_data', next_sample['data']['LIDAR_TOP'])
+                real_next_ego_pose = utils.nusc.get('ego_pose', sample_lidar['ego_pose_token'])
 
+                next_ego_pose = {
+                    'translation': experiment_result_dict['sim_ego_pos'][next_idx],
+                    'rotation': experiment_result_dict['sim_ego_quat'][next_idx],
+                    'token': real_next_ego_pose['token'],
+                    'timestamp': real_next_ego_pose['timestamp']
+                }
+                # publish /tf
+                tf_array = utils.get_tfmessage(cur_sample, current_pose=ego_pose, next_pose=next_ego_pose)
+                bag.write('/tf', tf_array, stamp)
+                
+            else:
+                # publish /tf
+                tf_array = utils.get_tfmessage(cur_sample)
+                bag.write('/tf', tf_array, stamp)
+        else:
+            # publish /tf
+            tf_array = utils.get_tfmessage(cur_sample)
+            bag.write('/tf', tf_array, stamp)
+            
+        
         # write map topics every two seconds
         if stamp - rospy.Duration(2.0) >= last_map_stamp:
             map_msg.header.stamp = stamp
@@ -130,25 +183,9 @@ def convert_scene(scene, utils, dataroot,  *args, **kwargs):
         for (msg_stamp, topic, msg) in can_msg_events:
             bag.write(topic, msg, stamp)
 
-        # publish /tf
-        tf_array = utils.get_tfmessage(cur_sample)
-        bag.write('/tf', tf_array, stamp)
-
+        
         # /driveable_area occupancy grid
         utils.write_occupancy_grid(bag, nusc_map, ego_pose, stamp)
-        
-        #### write experiment_result to bag ####
-        if experiment_result_dict is not None:
-            for k,v in experiment_result_dict.items():
-                if idx in v.keys():
-                    png = v[idx]
-                    msg = CompressedImage()
-                    msg.header.frame_id = k
-                    msg.header.stamp = stamp
-                    msg.format = 'png'
-                    msg.data = png
-                    bag.write("/"+k+'/image_rect_compressed', msg, stamp)
-                                
                 
         # iterate sensors
         for (sensor_id, sample_token) in cur_sample['data'].items():

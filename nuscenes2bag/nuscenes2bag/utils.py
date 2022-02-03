@@ -383,9 +383,10 @@ class Utils(object):
 
         return (msg.header.stamp, '/diagnostics', msg)
 
-    def get_tfs(self,sample):
-        sample_lidar = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
-        ego_pose = self.nusc.get('ego_pose', sample_lidar['ego_pose_token'])
+    def get_tfs(self,sample, ego_pose=None):
+        if ego_pose is None:
+            sample_lidar = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+            ego_pose = self.nusc.get('ego_pose', sample_lidar['ego_pose_token'])
         stamp = self.get_time(ego_pose)
 
         transforms = []
@@ -412,15 +413,15 @@ class Utils(object):
 
         return transforms
 
-    def get_tfmessage(self,sample):
+    def get_tfmessage(self,sample, current_pose=None, next_pose=None):
         # get transforms for the current sample
         tf_array = TFMessage()
-        tf_array.transforms = self.get_tfs(sample)
+        tf_array.transforms = self.get_tfs(sample, current_pose)
 
         # add transforms from the next sample to enable interpolation
         next_sample = self.nusc.get('sample', sample['next']) if sample.get('next') != '' else None
         if next_sample is not None:
-            tf_array.transforms += self.get_tfs(next_sample)
+            tf_array.transforms += self.get_tfs(next_sample, next_pose)
 
         return tf_array
 
