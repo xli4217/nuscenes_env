@@ -17,6 +17,8 @@ from tf2_msgs.msg import TFMessage
 from typing import List, Tuple, Dict
 from visualization_msgs.msg import ImageMarker, Marker, MarkerArray
 from PIL import Image
+import cloudpickle
+import torch
 
 import math
 import numpy as np
@@ -25,29 +27,55 @@ import random
 import rosbag
 import rospy
 
-from nuscenes2bag.nuscenes2bag.utils import Utils
-from nuscenes2bag.nuscenes2bag.bitmap import BitMap
+from nuscenes2bag.utils import Utils
+from nuscenes2bag.bitmap import BitMap
 
 from pathlib import Path
 
 def load_experiment_rollout_data(experiment_path: str):
-    img_dict = {
-        'bev/bev': [],
-        'ctrl/ctrl': [],
-        'input_images/past_raster':[],
-        'q_transitions/q_transitions': []
+    experiment_result_dict = {
+        'figures':{
+            'bev/bev': {},
+            'ctrl/ctrl': {},
+            'input_images/past_raster':{},
+            'q_transitions/q_transitions':{}
+        },
+        'sim_ego_pos': {},
+        'sim_ego_quat': {}
     }
     
-    for img_folder_name in img_dict.keys():
-        for p in [str(p) for p in Path(experiment_path+'/'+img_folder_name)]:
-            pass
-
-def convert_scene(scene, utils, *args, **kwargs):
+    #### figures ####
+    for img_folder_name in experiment_result_dict['figures'].keys():
+        p_list = np.array([str(p) for p in Path(experiment_path+'/'+img_folder_name).glob('*.png')])
+        idx = np.argsort([int(p.split('/')[-1][:2]) for p in p_list])
+        p_list = p_list[idx].tolist()
+        
+        for p in p_list:
+            with open(p, 'rb') as png_file:
+                png = png_file.read()
+                idx = int(p.split('/')[-1][:2])
+                experiment_result_dict['figures'][img_folder_name][idx] = png
+    
+    #### ego ####
+    d = cloudpickle.load(open(os.path.join(experiment_path, 'eval_data', 'scene-0061.pkl'), 'rb'))
+    ##################### break point #####################
+    from rich.console import Console; console = Console()
+    console.log('log', log_locals=False)
+    import ipdb; ipdb.set_trace()
+    ########################################################
+    
+    return experiment_result_dict
+            
+def convert_scene(scene, utils, dataroot,  *args, **kwargs):
+    experiment_result_dict = None
+    if 'experiment_result_dict' in kwargs.keys():
+        experiment_result_dict = kwargs['experiment_result_dict']
+    
     scene_name = scene['name']
     log = nusc.get('log', scene['log_token'])
     location = log['location']
     print(f'Loading map "{location}"')
-    nusc_map = NuScenesMap(dataroot='data', map_name=location)
+    nusc_map = NuScenesMap(dataroot=dataroot, map_name=location)
     print(f'Loading bitmap "{nusc_map.map_name}"')
     bitmap = BitMap(nusc_map.dataroot, nusc_map.map_name, 'basemap')
     print(f'Loaded {bitmap.image.shape} bitmap')
@@ -75,6 +103,7 @@ def convert_scene(scene, utils, *args, **kwargs):
     bag.write('/semantic_map', centerlines_msg, stamp)
     last_map_stamp = stamp
 
+    idx = 0
     while cur_sample is not None:
         sample_lidar = nusc.get('sample_data', cur_sample['data']['LIDAR_TOP'])
         ego_pose = nusc.get('ego_pose', sample_lidar['ego_pose_token'])
@@ -107,7 +136,20 @@ def convert_scene(scene, utils, *args, **kwargs):
 
         # /driveable_area occupancy grid
         utils.write_occupancy_grid(bag, nusc_map, ego_pose, stamp)
-
+        
+        #### write experiment_result to bag ####
+        if experiment_result_dict is not None:
+            for k,v in experiment_result_dict.items():
+                if idx in v.keys():
+                    png = v[idx]
+                    msg = CompressedImage()
+                    msg.header.frame_id = k
+                    msg.header.stamp = stamp
+                    msg.format = 'png'
+                    msg.data = png
+                    bag.write("/"+k+'/image_rect_compressed', msg, stamp)
+                                
+                
         # iterate sensors
         for (sensor_id, sample_token) in cur_sample['data'].items():
             sample_data = nusc.get('sample_data', sample_token)
@@ -121,7 +163,7 @@ def convert_scene(scene, utils, *args, **kwargs):
             #     msg = utils.get_lidar(sample_data, sensor_id)
             #     bag.write(topic, msg, stamp)
             if sample_data['sensor_modality'] == 'camera':
-                msg = utils.get_camera(sample_data, sensor_id)
+                msg = utils.get_camera(sample_data, sensor_id, dataroot)
                 bag.write(topic + '/image_rect_compressed', msg, stamp)
                 msg = utils.get_camera_info(sample_data, sensor_id)
                 bag.write(topic + '/camera_info', msg, stamp)
@@ -209,7 +251,7 @@ def convert_scene(scene, utils, *args, **kwargs):
                 #     msg = utils.get_lidar(next_sample_data, sensor_id)
                 #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
                 if next_sample_data['sensor_modality'] == 'camera':
-                    msg = utils.get_camera(next_sample_data, sensor_id)
+                    msg = utils.get_camera(next_sample_data, sensor_id, dataroot)
                     camera_stamp_nsec = msg.header.stamp.to_nsec()
                     non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/image_rect_compressed', msg))
 
@@ -231,7 +273,8 @@ def convert_scene(scene, utils, *args, **kwargs):
                     # non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/image_markers_annotations', msg))
 
                 next_sample_token = next_sample_data['next']
-
+        
+                
         # sort and publish the non-keyframe sensor msgs
         non_keyframe_sensor_msgs.sort(key=lambda x: x[0])
         for (_, topic, msg) in non_keyframe_sensor_msgs:
@@ -239,7 +282,7 @@ def convert_scene(scene, utils, *args, **kwargs):
 
         # move to the next sample
         cur_sample = nusc.get('sample', cur_sample['next']) if cur_sample.get('next') != '' else None
-
+        idx += 1
     bag.close()
     print(f'Finished writing {bag_name}')
     
@@ -247,12 +290,16 @@ def convert_scene(scene, utils, *args, **kwargs):
 if __name__ == "__main__":
     NUSCENES_VERSION = 'v1.0-mini'
 
-    nusc = NuScenes(version=NUSCENES_VERSION, dataroot='data', verbose=True)
-    nusc_can = NuScenesCanBus(dataroot='data')
+    dataroot = os.path.join(os.environ['PKG_PATH'],'data')
+    nusc = NuScenes(version=NUSCENES_VERSION, dataroot=dataroot, verbose=True)
+    nusc_can = NuScenesCanBus(dataroot=dataroot)
     
     utils = Utils(nusc, nusc_can)
     
-    convert_scene(nusc.scene[0], utils)
+    scene_data_p = os.path.join(os.environ['PKG_PATH'], 'data', 'supercloud_data', 'scene-0061')
+    experiment_result_dict = load_experiment_rollout_data(scene_data_p)
+    
+    convert_scene(nusc.scene[0], utils, dataroot, experiment_result_dict=experiment_result_dict)
 
     # for scene in nusc.scene:
     #     convert_scene(scene)

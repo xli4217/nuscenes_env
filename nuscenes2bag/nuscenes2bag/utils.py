@@ -180,8 +180,8 @@ class Utils(object):
         msg.header.stamp = self.get_time(sample_data)
         return msg
 
-    def get_camera(self,sample_data, frame_id):
-        jpg_filename = 'data/' + sample_data['filename']
+    def get_camera(self,sample_data, frame_id, dataroot):
+        jpg_filename = dataroot+ '/' + sample_data['filename']
         msg = CompressedImage()
         msg.header.frame_id = frame_id
         msg.header.stamp = self.get_time(sample_data)
