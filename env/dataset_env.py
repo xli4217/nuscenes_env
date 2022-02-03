@@ -377,7 +377,11 @@ class NuScenesDatasetEnv(NuScenesAgent):
             
             for fl in self.r.future_neighbor_lane:
                 ax.plot(fl[:,0], fl[:,1], linestyle='-.', color='green', linewidth=2, zorder=750) '''
-            
+        
+        # future agent lane from dataset #
+        future_agent_lane_local = self.all_info['adapt_one_row_data']['future_lane']
+        future_agent_lane_gb = convert_local_coords_to_global(future_agent_lane_local, self.sim_ego_pos_gb, self.sim_ego_quat_gb)
+        ax.plot(future_agent_lane_gb[:,0], future_agent_lane_gb[:,1], linestyle='-.', color='grey', linewidth=2, zorder=750)
             
         return fig, ax, other
 

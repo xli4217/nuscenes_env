@@ -28,9 +28,21 @@ import rospy
 from nuscenes2bag.nuscenes2bag.utils import Utils
 from nuscenes2bag.nuscenes2bag.bitmap import BitMap
 
+from pathlib import Path
 
+def load_experiment_rollout_data(experiment_path: str):
+    img_dict = {
+        'bev/bev': [],
+        'ctrl/ctrl': [],
+        'input_images/past_raster':[],
+        'q_transitions/q_transitions': []
+    }
+    
+    for img_folder_name in img_dict.keys():
+        for p in [str(p) for p in Path(experiment_path+'/'+img_folder_name)]:
+            pass
 
-def convert_scene(scene, utils):
+def convert_scene(scene, utils, *args, **kwargs):
     scene_name = scene['name']
     log = nusc.get('log', scene['log_token'])
     location = log['location']

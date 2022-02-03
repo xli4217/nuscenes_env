@@ -124,21 +124,21 @@ class ProcessDatasetSplit(object):
         print(f"train_df shape is {train_df.shape}")
         print(f"val_df shape is {val_df.shape}")
 
-        mini_train_df = train_df.iloc[:300,:]
-        mini_val_df = val_df.iloc[:70,:]
-        
         train_df.to_pickle(self.config['save_dir']+"/train.pkl")
         val_df.to_pickle(self.config['save_dir']+"/val.pkl")
 
-        mini_train_df.to_pickle(self.config['save_dir']+"/mini_train.pkl")
-        mini_val_df.to_pickle(self.config['save_dir']+"/mini_val.pkl")
+        # mini_train_df = train_df.iloc[:300,:]
+        # mini_val_df = val_df.iloc[:70,:]
+        
+        # mini_train_df.to_pickle(self.config['save_dir']+"/mini_train.pkl")
+        # mini_val_df.to_pickle(self.config['save_dir']+"/mini_val.pkl")
 
         
     def create_train_val_split(self, df):
-        normalized_df = self.normalize(df, normalize_elements=self.config['normalize_elements'])
-        train_df, val_df = self.train_val_split_filter(normalized_df, self.config['train_val_split_filter']['config'])
+        #normalized_df = self.normalize(df, normalize_elements=self.config['normalize_elements'])
+        train_df, val_df = self.train_val_split_filter(df, self.config['train_val_split_filter']['config'])
 
-        normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
+        #normalized_df.to_pickle(self.config['save_dir']+"/full.pkl")
 
         return train_df, val_df
 
