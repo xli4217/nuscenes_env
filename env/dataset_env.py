@@ -143,6 +143,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.all_info['sim_ego_raster_image'] = sim_ego_raster_img
             
         self.all_info['sim_ego_yaw_rate'] = self.sim_ego_yaw_rate
+        self.all_info['sim_ego_yaw'] = self.sim_ego_yaw
         self.all_info['sim_ego_goal'] = self.sim_ego_goal
         self.all_info['current_sim_ego_neighbor_pos'] = self.r.current_neighbor_pos
         self.all_info['sim_ego_future_lanes'] = get_future_lanes(self.map, 
