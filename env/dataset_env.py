@@ -14,7 +14,6 @@ from nuscenes.prediction import PredictHelper
 from nuscenes.prediction.helper import angle_of_rotation
 from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
-from nuscenes.prediction.helper import angle_of_rotation
 from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, LineString, Point, box
 
