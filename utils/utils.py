@@ -71,8 +71,10 @@ def get_nearest_intersection(obs, init_ego_pos, init_ego_quat):
 def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb):
     lane_pos_local = convert_global_coords_to_local(lane_pos_gb, ego_pos_gb, ego_quat_gb)
     idx = np.argmax(lane_pos_local[:,1]>0)
-    future_lane = lane_pos_local[idx:,:]
-    return future_lane
+    future_lane_local = lane_pos_local[idx:,:]
+    future_lane_gb = convert_local_coords_to_global(future_lane_local, ego_pos_gb, ego_quat_gb)
+    
+    return future_lane_local, future_lane_gb
 
 
 def get_points_on_future_lane(obs, speed, ego_pos_gb, ego_quat_gb):
