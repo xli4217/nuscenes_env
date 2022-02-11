@@ -57,7 +57,7 @@ def load_experiment_rollout_data(experiment_path: str):
                 experiment_result_dict['figures'][img_folder_name][idx] = png
     
     #### ego ####
-    d = cloudpickle.load(open(os.path.join(experiment_path, 'eval_data', 'scene-0061.pkl'), 'rb'))
+    d = cloudpickle.load(open(os.path.join(experiment_path, 'scene-0061.pkl'), 'rb'))
     sim_ego_pos = {}
     sim_ego_quat = {}
     for obs in d['obs']:
@@ -108,6 +108,8 @@ def convert_scene(scene, utils, dataroot,  *args, **kwargs):
 
     idx = 0
     while cur_sample is not None:
+        if idx > 30:
+            break
         sample_lidar = nusc.get('sample_data', cur_sample['data']['LIDAR_TOP'])
         ego_pose = nusc.get('ego_pose', sample_lidar['ego_pose_token'])
         stamp = utils.get_time(ego_pose)
@@ -333,7 +335,7 @@ if __name__ == "__main__":
     
     utils = Utils(nusc, nusc_can)
     
-    scene_data_p = os.path.join(os.environ['PKG_PATH'], 'data', 'supercloud_data', 'scene-0061')
+    scene_data_p = os.path.join(os.environ['PKG_PATH'], 'data', 'supercloud_data', 'CnnLstmAgn_dmp_trainable', 'scene-0061')
     experiment_result_dict = load_experiment_rollout_data(scene_data_p)
     
     convert_scene(nusc.scene[0], utils, dataroot, experiment_result_dict=experiment_result_dict)
