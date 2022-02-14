@@ -30,6 +30,8 @@ import rospy
 
 from nuscenes2bag.utils import Utils
 from nuscenes2bag.bitmap import BitMap
+from rich.console import Console; console = Console(); print = console.print
+
 
 from pathlib import Path
 import fire
@@ -39,9 +41,7 @@ class ConvertScene(object):
     def __init__(self, config={}):
         self.config = {
             'version': 'v1.0-mini',
-            'dataroot': os.path.join(os.environ['PKG_PATH'],'data'),
-            'scene_name': 'scene-0061',
-            'model_name': ""
+            'dataroot': os.path.join(os.environ['PKG_PATH'],'data')
         }
         self.config.update(config)
         
@@ -50,12 +50,6 @@ class ConvertScene(object):
         self.nusc_can = NuScenesCanBus(dataroot=self.config['dataroot'])
     
         self.utils = Utils(self.nusc, self.nusc_can)
-    
-        self.scene_data_p = os.path.join(os.environ['PKG_PATH'], 'data', 
-                                         'supercloud_data', self.config['model_name'], self.config['scene_name'])
-        
-        self.experiment_result_dict = self.load_experiment_rollout_data(self.scene_data_p)
-    
 
     def load_experiment_rollout_data(self, experiment_path: str):
         experiment_result_dict = {
@@ -81,8 +75,9 @@ class ConvertScene(object):
                     idx = int(p.split('/')[-1][:2])
                     experiment_result_dict['figures'][img_folder_name][idx] = png
         
+        
         #### ego ####
-        d = cloudpickle.load(open(os.path.join(experiment_path, f"{self.config['scene_name']}.pkl"), 'rb'))
+        d = cloudpickle.load(open(os.path.join(experiment_path, f'{self.scene_name}.pkl'), 'rb'))
         sim_ego_pos = {}
         sim_ego_quat = {}
         for obs in d['obs']:
@@ -94,14 +89,28 @@ class ConvertScene(object):
         
         return experiment_result_dict
     
-    def convert(self):
-        self.convert_scene(self.config['scene_name'], self.utils, self.config['dataroot'])
+    def convert(self, scene_data_p, scene_name=None, model_name=None):
+        self.scene_name = scene_name
+        self.model_name = model_name
+        
+        self.scene_data_p = scene_data_p
+        self.experiment_result_dict = self.load_experiment_rollout_data(self.scene_data_p)
+        self.convert_scene(scene_name, 
+                           self.utils, 
+                           self.config['dataroot'], 
+                           experiment_result_dict=self.experiment_result_dict)
     
-    def convert_scene(self, scene, utils, dataroot,  *args, **kwargs):
+    def convert_scene(self, scene_name, utils, dataroot,  *args, **kwargs):
         experiment_result_dict = None
         if 'experiment_result_dict' in kwargs.keys():
             experiment_result_dict = kwargs['experiment_result_dict']
         
+        scene_i = None
+        for scene_i in self.nusc.scene:
+            if scene_i['name'] == scene_name:
+                scene = scene_i
+                break
+            
         scene_name = scene['name']
         log = self.nusc.get('log', scene['log_token'])
         location = log['location']
@@ -123,7 +132,7 @@ class ConvertScene(object):
         ]
 
         bag_name = f"{self.config['scene_name']}.bag"
-        bag_path = os.path.join(os.path.abspath(os.curdir), bag_name)
+        bag_path = os.path.join(self.scene_data_p, bag_name)
         print(f'Writing to {bag_path}')
         bag = rosbag.Bag(bag_path, 'w', compression='lz4')
 
@@ -154,7 +163,6 @@ class ConvertScene(object):
                         msg.format = 'png'
                         msg.data = png
                         bag.write("/"+k+'/image_rect_compressed', msg, stamp)
-                    
                 if idx in experiment_result_dict['sim_ego_pos'].keys():
                     ego_pose = {
                         'translation': experiment_result_dict['sim_ego_pos'][idx],
@@ -355,15 +363,23 @@ class ConvertScene(object):
     
     
 if __name__ == "__main__":
+    
+    dataroot = os.path.join(os.environ['PKG_PATH'],'data')
+    model_name = 'CnnLstmAgnnp_dmp'
+    ckpt_name = 'epoch=499-step=1999'
+    scene_name = 'scene-0061'
+    
     config = {
         'version': 'v1.0-mini',
-        'dataroot': os.path.join(os.environ['PKG_PATH'],'data'),
-        'scene_name': 'scene-0061',
+        'dataroot': dataroot,
+        'scene_name': scene_name,
         'model_name': ""
     }
 
     converter = ConvertScene(config)
-    converter.convert()
+    
+    scene_data_p = os.path.join(dataroot, 'supercloud_data', model_name, ckpt_name, scene_name, scene_name)
+    converter.convert(scene_data_p=scene_data_p, scene_name='scene-0061')
 
     # for scene in nusc.scene:
     #     convert_scene(scene)
