@@ -32,9 +32,11 @@ class ProcessDatasetSplit(object):
         self.py_logger = py_logger
         if py_logger is not None:
             self.py_logger.info(f"ProcessDatasetSplit config: {self.config}")
-    
+
         if self.config['train_val_split_filter']['type'] is None:
             raise ValueError('train val split filter not provided')
+        
+        
         self.train_val_split_filter = class_from_path(self.config['train_val_split_filter']['type'])
         
         self.additional_processor = None
@@ -43,7 +45,6 @@ class ProcessDatasetSplit(object):
     
 
         self.final_data_fn = [str(p) for p in Path(self.config['input_data_dir']).rglob('*.pkl')]
-
         #### initialize ray #####
         if self.config['num_workers'] > 1:
             ray.shutdown()
