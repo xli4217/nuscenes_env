@@ -20,6 +20,7 @@ from visualization_msgs.msg import ImageMarker, Marker, MarkerArray
 from PIL import Image
 import cloudpickle
 import torch
+import pandas as pd
 
 import math
 import numpy as np
@@ -27,10 +28,12 @@ import os
 import random
 import rosbag
 import rospy
+import fire
 
 from nuscenes2bag.utils import Utils
 from nuscenes2bag.bitmap import BitMap
 from rich.console import Console; console = Console(); print = console.print
+from rich.traceback import install; install(show_locals=False)
 
 
 from pathlib import Path
@@ -51,6 +54,7 @@ class ConvertScene(object):
     
         self.utils = Utils(self.nusc, self.nusc_can)
 
+    
     def load_experiment_rollout_data(self, experiment_path: str):
         experiment_result_dict = {
             'figures':{
@@ -77,7 +81,7 @@ class ConvertScene(object):
         
         
         #### ego ####
-        d = cloudpickle.load(open(os.path.join(experiment_path, f'{self.scene_name}.pkl'), 'rb'))
+        d = cloudpickle.load(open(os.path.join(experiment_path, f'rollout.pkl'), 'rb'))
         sim_ego_pos = {}
         sim_ego_quat = {}
         for obs in d['obs']:
@@ -89,18 +93,59 @@ class ConvertScene(object):
         
         return experiment_result_dict
     
-    def convert(self, scene_data_p, scene_name=None, model_name=None):
+    def load_experiment_rollout_data_pandas(self, experiment_path: str):
+        experiment_result_dict = {
+            'figures':{
+                'feature': {},
+                'ioc_param': {},
+                'monitor':{}
+            },
+            'sim_ego_pos': {},
+            'sim_ego_quat': {}
+        }
+        
+        #### figures ####
+        for img_folder_name in experiment_result_dict['figures'].keys():
+            p_list = np.array([str(p) for p in Path(experiment_path+'/'+img_folder_name).glob('*.png')])
+            idx = np.argsort([int(p.split('/')[-1][:2]) for p in p_list])
+            p_list = p_list[idx].tolist()
+            
+            for p in p_list:
+                with open(p, 'rb') as png_file:
+                    png = png_file.read()
+                    idx = int(p.split('/')[-1][:2])
+                    experiment_result_dict['figures'][img_folder_name][idx] = png
+        
+        
+        #### ego ####
+        d_pd = pd.read_pickle(os.path.join(experiment_path, f'rollout.pkl'))
+        d = d_pd['env_info']
+        sim_ego_pos = {}
+        sim_ego_quat = {}
+        for obs in d['obs']:
+            sim_ego_pos[obs['sample_idx']] = obs['sim_ego_pos_gb'].tolist() + [0.01] 
+            sim_ego_quat[obs['sample_idx']] = obs['sim_ego_quat_gb'].tolist()
+        
+        experiment_result_dict['sim_ego_pos'] = sim_ego_pos
+        experiment_result_dict['sim_ego_quat'] = sim_ego_quat
+        
+        return experiment_result_dict
+    
+    def convert(self, scene_data_p, scene_name=None, model_name=None, up_to_step=None):
         self.scene_name = scene_name
         self.model_name = model_name
         
         self.scene_data_p = scene_data_p
         self.experiment_result_dict = self.load_experiment_rollout_data(self.scene_data_p)
+        #self.experiment_result_dict = self.load_experiment_rollout_data_pandas(self.scene_data_p)
         self.convert_scene(scene_name, 
                            self.utils, 
                            self.config['dataroot'], 
-                           experiment_result_dict=self.experiment_result_dict)
+                           up_to_step=up_to_step,
+                           experiment_result_dict=self.experiment_result_dict
+                        )
     
-    def convert_scene(self, scene_name, utils, dataroot,  *args, **kwargs):
+    def convert_scene(self, scene_name, utils, dataroot, up_to_step,  *args, **kwargs):
         experiment_result_dict = None
         if 'experiment_result_dict' in kwargs.keys():
             experiment_result_dict = kwargs['experiment_result_dict']
@@ -145,8 +190,8 @@ class ConvertScene(object):
 
         idx = 0
         while cur_sample is not None:
-            #if idx > 30:
-            #    break
+            if up_to_step is not None and idx > up_to_step:
+               break
             sample_lidar = self.nusc.get('sample_data', cur_sample['data']['LIDAR_TOP'])
             ego_pose = self.nusc.get('ego_pose', sample_lidar['ego_pose_token'])
             stamp = utils.get_time(ego_pose)
@@ -360,15 +405,16 @@ class ConvertScene(object):
             idx += 1
         bag.close()
         print(f'Finished writing {bag_name}')
-    
-    
-if __name__ == "__main__":
-    
-    dataroot = os.path.join(os.environ['PKG_PATH'],'data')
-    model_name = 'CnnLstmAgnnp_dmp'
-    ckpt_name = 'epoch=499-step=1999'
-    scene_name = 'scene-0061'
-    
+
+def convert(
+    dataroot = os.path.join(os.environ['PKG_PATH'],'data'),
+    model_name = '',
+    ckpt_name = '',
+    scene_name = '',
+    up_to_step = None
+):
+    # for scene in nusc.scene:
+    #     convert_scene(scene)
     config = {
         'version': 'v1.0-mini',
         'dataroot': dataroot,
@@ -378,8 +424,12 @@ if __name__ == "__main__":
 
     converter = ConvertScene(config)
     
-    scene_data_p = os.path.join(dataroot, 'supercloud_data', model_name, ckpt_name, scene_name, scene_name)
-    converter.convert(scene_data_p=scene_data_p, scene_name='scene-0061')
+    scene_data_p = os.path.join(dataroot, 'supercloud_data', model_name, ckpt_name, scene_name)
+    converter.convert(scene_data_p=scene_data_p, scene_name=scene_name, up_to_step=up_to_step)
 
-    # for scene in nusc.scene:
-    #     convert_scene(scene)
+    
+if __name__ == "__main__":
+    fire.Fire(convert)
+    
+    
+    
