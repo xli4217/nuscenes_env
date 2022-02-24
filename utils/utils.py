@@ -70,11 +70,23 @@ def get_nearest_intersection(obs, init_ego_pos, init_ego_quat):
 
 def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb):
     lane_pos_local = convert_global_coords_to_local(lane_pos_gb, ego_pos_gb, ego_quat_gb)
-    idx = np.argmax(lane_pos_local[:,1]>0)
+    #idx = np.argmax(lane_pos_local[:,1]>0)
+    if all(lane_pos_local[:,1]>=0):
+        idx = 0
+    else:
+        idx = np.where(lane_pos_local[:,1]<0)[0][-1]
+    # if idx == 0:
+    #     ##################### break point #####################
+    #     from rich.console import console; console = console()
+    #     console.log('log', log_locals=false)
+    #     import ipdb; ipdb.set_trace()
+    #     ########################################################        
+    if idx == 0 and lane_pos_local[idx,1] < 0:
+        idx = lane_pos_local.shape[0] - 2
     future_lane_local = lane_pos_local[idx:,:]
     future_lane_gb = convert_local_coords_to_global(future_lane_local, ego_pos_gb, ego_quat_gb)
     
-    return future_lane_local, future_lane_gb
+    return future_lane_local, future_lane_gb, idx
 
 
 def get_points_on_future_lane(obs, speed, ego_pos_gb, ego_quat_gb):
