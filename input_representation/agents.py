@@ -276,7 +276,7 @@ class AgentBoxesWithFadedHistory(AgentRepresentation):
         :param sample_token: Sample token.
         :return: np.ndarray representing a 3 channel image.
         """
-
+        
         # Taking radius around track before to ensure all actors are in image
         buffer = max([self.meters_ahead, self.meters_behind,
                       self.meters_left, self.meters_right]) * 2
@@ -300,7 +300,6 @@ class AgentBoxesWithFadedHistory(AgentRepresentation):
 
         history = add_present_time_to_history(present_time, history)
 
-        
         if not ego:
             center_agent_annotation = self.helper.get_sample_annotation(instance_token, sample_token)
         else:
