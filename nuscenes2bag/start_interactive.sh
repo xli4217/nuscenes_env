@@ -9,7 +9,8 @@ if [[ $COMPUTE_LOCATION == "mac" ]]; then
 fi
 
 if [[ $COMPUTE_LOCATION == "local" ]]; then
-    v=""
+    v="/home/xli4217/Xiao/postdoc/TRI/nuscenes_env/nuscenes2bag"
+    v_data="/home/xli4217/Xiao/datasets/nuscenes/"
 fi
 
 if [[ $COMPUTE_LOCATION == "supercloud" ]]; then
@@ -25,4 +26,5 @@ docker run -it --rm \
            --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
            --workdir="/home/$USER" \
            --volume="$v:/home/$USER" \
+           --volume="$v_data:/home/$USER/data" \
            --name to_bag nuscenes2bag:0.0.1

@@ -407,7 +407,7 @@ class ConvertScene(object):
         print(f'Finished writing {bag_name}')
 
 def convert(
-    dataroot = os.path.join(os.environ['PKG_PATH'],'data'),
+    mini_or_full = 'mini',
     model_name = '',
     ckpt_name = '',
     scene_name = '',
@@ -415,8 +415,16 @@ def convert(
 ):
     # for scene in nusc.scene:
     #     convert_scene(scene)
+    
+    datap = os.path.join(os.environ['PKG_PATH'],'data')
+    dataroot = os.path.join(datap, mini_or_full)
+    if mini_or_full == 'mini':
+        version = 'v1.0-mini'
+    else:
+        version = 'v1.0'
+    
     config = {
-        'version': 'v1.0-mini',
+        'version': version,
         'dataroot': dataroot,
         'scene_name': scene_name,
         'model_name': ""
@@ -424,7 +432,7 @@ def convert(
 
     converter = ConvertScene(config)
     
-    scene_data_p = os.path.join(dataroot, 'supercloud_data', model_name, ckpt_name, scene_name)
+    scene_data_p = os.path.join(datap, 'supercloud_data', model_name, ckpt_name, scene_name)
     converter.convert(scene_data_p=scene_data_p, scene_name=scene_name, up_to_step=up_to_step)
 
     
