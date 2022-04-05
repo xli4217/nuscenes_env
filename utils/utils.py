@@ -68,23 +68,29 @@ def get_nearest_intersection(obs, init_ego_pos, init_ego_quat):
     return closest_intersection_center
 
 
-def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb):
+def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb, *args, **kwargs):
     lane_pos_local = convert_global_coords_to_local(lane_pos_gb, ego_pos_gb, ego_quat_gb)
     #idx = np.argmax(lane_pos_local[:,1]>0)
-    if all(lane_pos_local[:,1]>=0):
-        idx = 0
-    else:
-        idx = np.where(lane_pos_local[:,1]<0)[0][-1]
-    # if idx == 0:
-    #     ##################### break point #####################
-    #     from rich.console import console; console = console()
-    #     console.log('log', log_locals=false)
-    #     import ipdb; ipdb.set_trace()
-    #     ########################################################        
-    if idx == 0 and lane_pos_local[idx,1] < 0:
-        idx = lane_pos_local.shape[0] - 2
+    # if all(lane_pos_local[:,1]>=0):
+    #     idx = 0
+    # else:
+    #     idx = np.where(lane_pos_local[:,1]<0)[0][-1]
+    # if idx == 0 and lane_pos_local[idx,1] < 0:
+    #     idx = lane_pos_local.shape[0] - 2
+    
+    dist_to_ego = np.linalg.norm(lane_pos_local, axis=-1)
+    idx = np.argmin(dist_to_ego)
+    
     future_lane_local = lane_pos_local[idx:,:]
     future_lane_gb = convert_local_coords_to_global(future_lane_local, ego_pos_gb, ego_quat_gb)
+    
+    # if 'sample_idx' in kwargs.keys():
+    #     if kwargs['sample_idx'] == 28:
+    #         ##################### break point #####################
+    #         from rich.console import Console; console = Console()
+    #         console.log('log', log_locals=False)
+    #         import ipdb; ipdb.set_trace()
+    #         ########################################################
     
     return future_lane_local, future_lane_gb, idx
 

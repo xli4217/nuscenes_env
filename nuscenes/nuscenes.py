@@ -20,6 +20,8 @@ from pyquaternion import Quaternion
 from tqdm import tqdm
 from scipy.ndimage import rotate
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import cloudpickle
+import time
 #from map_expansion.map_api import NuScenesMap
 
 
@@ -107,8 +109,17 @@ class NuScenes:
 
     def __load_table__(self, table_name) -> dict:
         """ Loads a table. """
-        with open(osp.join(self.table_root, '{}.json'.format(table_name))) as f:
-            table = json.load(f)
+        print(table_name)
+        t = time.time()
+        if 'mini' not in self.version and (table_name == 'sample_data' or table_name == 'ego_pose' or table_name == 'sample_annotation'):
+            p = osp.join(self.table_root, '{}.pkl'.format(table_name))
+            table = cloudpickle.load(open(p, 'rb'))
+        else:
+            p = osp.join(self.table_root, '{}.json'.format(table_name))
+            #with open(osp.join(self.table_root, '{}.json'.format(table_name))) as f:
+            with open(p) as f:
+                table = json.load(f)
+        print("Loaded {} in {:.1f} seconds.".format(table_name, time.time() - t))
         return table
 
     def __make_reverse_index__(self, verbose: bool) -> None:

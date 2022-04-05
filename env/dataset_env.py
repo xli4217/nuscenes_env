@@ -127,8 +127,8 @@ class NuScenesDatasetEnv(NuScenesAgent):
         #### Sim Ego ####
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
-        sim_ego_yaw = Quaternion(self.sim_ego_quat_gb)
-        self.all_info['sim_ego_yaw_rad'] = angle_of_rotation(quaternion_yaw(sim_ego_yaw))
+        #self.all_info['sim_ego_yaw_rad'] = angle_of_rotation(quaternion_yaw(Quaternion(self.sim_ego_quat_gb)))
+        self.all_info['sim_ego_yaw_rad'] = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         sim_ego_pose = {
@@ -181,7 +181,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
                                                                      full_df=self.full_data, 
                                                                      sim_ego_raster_img_history=self.sim_ego_raster_image_history)[0]
         
-            
+                
     def update_row(self, instance_token, sample_idx=None):
         # get the correct row
         self.r = self.instance_df[self.instance_df.sample_idx==sample_idx].iloc[0]
@@ -415,7 +415,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
             
         #if self.config['control_mode'] == 'trajectory' and action is not None:
         #    self.sim_ego_pos_gb = action[0]
-            
         if self.config['control_mode'] == 'kinematics' and action is not None:
             #### using a unicycle model ####
             self.sim_ego_speed = action[0]
@@ -427,8 +426,16 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
             self.sim_ego_yaw += self.sim_ego_yaw_rate * 0.5
             q = Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw))
+            
             self.sim_ego_quat_gb = np.array([q[0], q[1], q[2], q[3]])
-
+            
+            if q[3] > 0:
+                self.sim_ego_quat_gb *= -1
+            
+            # to prevent quaternion from flipping signs when angle crosses x-axis
+            if np.linalg.norm(abs(self.sim_ego_quat_gb)-abs(self.all_info['sim_ego_quat_gb'])) < 0.1 and np.sign(self.sim_ego_quat_gb[-1]) != np.sign(self.all_info['sim_ego_quat_gb'][-1]):
+                self.sim_ego_quat_gb *= -1
+                        
 
         self.df_idx += 1
         self.update_all_info()
