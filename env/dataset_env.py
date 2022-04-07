@@ -99,7 +99,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
     def set_adapt_one_row_func(self, func=None, *args, **kwargs):
         self.adapt_one_row = func
         
-    def update_all_info(self):
+    def update_all_info(self, is_first_sample=False):
         if self.df_idx >= len(self.instance_sample_idx_list)-1:
             return {}
         self.sample_idx = self.instance_sample_idx_list[self.df_idx]
@@ -107,6 +107,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
 
         self.update_row(self.instance_token, self.sample_idx)
         
+        self.all_info['is_first_sample'] = is_first_sample
         #### Dataset Ego ####
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
@@ -240,28 +241,33 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.update_row(self.instance_token, self.sample_idx)
         self.map = NuScenesMap(dataroot=mini_path, map_name=self.r.scene_location)
         
+        # position
         if sim_ego_pos is None:
             self.sim_ego_pos_gb = self.r.current_agent_pos
         else:
             self.sim_ego_pos_gb = sim_ego_pos
+        
+        # orientation
         if sim_ego_quat is None:
             self.sim_ego_quat_gb = self.r.current_agent_quat
         else:
             self.sim_ego_quat_gb = sim_ego_quat
+        #if self.sim_ego_quat_gb[-1] > 0:
+        #    self.sim_ego_quat_gb *= -1
+        self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
+        
+        # speed
         if sim_ego_speed is None:
             self.sim_ego_speed = self.r.current_agent_speed
         else:
             self.sim_ego_speed = sim_ego_speed
+        
+        # steering
         if sim_ego_steering is None:
             self.sim_ego_yaw_rate = csteering
         else:
             self.sim_ego_yaw_rate = sim_ego_steering
-        self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         
-        ''' for q in self.r.future_agent_quat:
-            print(quaternion_yaw(Quaternion(q)))
-        print(self.r.future_agent_steering)
-        print(self.r.future_agent_speed) '''
         
         # histories #
         past_raster = np.array([np.asarray(Image.open(os.path.join(self.config['raster_dir'], str(p)))) for p in self.r.past_agent_raster_path])
@@ -272,7 +278,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.sim_ego_speed_history = self.scene_data.iloc[0].past_agent_speed.tolist() + self.scene_data.current_agent_speed.tolist()[:self.df_idx+1]
         self.sim_ego_steering_history = psteering 
         
-        self.update_all_info()
+        self.update_all_info(is_first_sample=True)
         return self.get_observation()
         
     def get_observation(self):
@@ -423,18 +429,12 @@ class NuScenesDatasetEnv(NuScenesAgent):
             dx_local = self.sim_ego_speed * np.array([np.cos(self.sim_ego_yaw), np.sin(self.sim_ego_yaw)]) * 0.5
 
             self.sim_ego_pos_gb += dx_local
-
+            #print("!!!!!!!!!!", self.sim_ego_quat_gb, self.sim_ego_yaw)
             self.sim_ego_yaw += self.sim_ego_yaw_rate * 0.5
-            q = Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw))
             
-            self.sim_ego_quat_gb = np.array([q[0], q[1], q[2], q[3]])
-            
-            if q[3] > 0:
-                self.sim_ego_quat_gb *= -1
-            
-            # to prevent quaternion from flipping signs when angle crosses x-axis
-            if np.linalg.norm(abs(self.sim_ego_quat_gb)-abs(self.all_info['sim_ego_quat_gb'])) < 0.1 and np.sign(self.sim_ego_quat_gb[-1]) != np.sign(self.all_info['sim_ego_quat_gb'][-1]):
-                self.sim_ego_quat_gb *= -1
+            q = np.array(Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw)).elements)
+                        
+            self.sim_ego_quat_gb = q           
                         
 
         self.df_idx += 1
