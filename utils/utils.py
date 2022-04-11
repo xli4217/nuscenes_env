@@ -80,10 +80,14 @@ def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb, *args, **kwargs):
     
     dist_to_ego = np.linalg.norm(lane_pos_local, axis=-1)
     idx = np.argmin(dist_to_ego)
+    first_sample_idx = None
+    if 'obs' in kwargs.keys():
+        dist_to_first_sample = np.linalg.norm(convert_global_coords_to_local(lane_pos_gb, kwargs['obs']['first_sample_pos'], kwargs['obs']['first_sample_quat']), axis=-1)
+        first_sample_idx = np.argmin(dist_to_first_sample)
     
     future_lane_local = lane_pos_local[idx:,:]
     future_lane_gb = convert_local_coords_to_global(future_lane_local, ego_pos_gb, ego_quat_gb)
-    
+        
     # if 'sample_idx' in kwargs.keys():
     #     if kwargs['sample_idx'] == 28:
     #         ##################### break point #####################
@@ -92,7 +96,7 @@ def get_ego_future_lanes(ego_pos_gb, ego_quat_gb, lane_pos_gb, *args, **kwargs):
     #         import ipdb; ipdb.set_trace()
     #         ########################################################
     
-    return future_lane_local, future_lane_gb, idx
+    return future_lane_local, future_lane_gb, idx, first_sample_idx
 
 
 def get_points_on_future_lane(obs, speed, ego_pos_gb, ego_quat_gb):

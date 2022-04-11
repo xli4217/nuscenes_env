@@ -108,6 +108,10 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.update_row(self.instance_token, self.sample_idx)
         
         self.all_info['is_first_sample'] = is_first_sample
+        if is_first_sample:
+            self.all_info['first_sample_pos'] = np.array(self.sim_ego_pos_gb)
+            self.all_info['first_sample_quat'] = np.array(self.sim_ego_quat_gb)
+        
         #### Dataset Ego ####
         self.all_info['sample_idx'] = self.sample_idx
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
@@ -129,7 +133,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['sim_ego_pos_gb'] = self.sim_ego_pos_gb
         self.all_info['sim_ego_quat_gb'] = self.sim_ego_quat_gb
         #self.all_info['sim_ego_yaw_rad'] = angle_of_rotation(quaternion_yaw(Quaternion(self.sim_ego_quat_gb)))
-        self.all_info['sim_ego_yaw_rad'] = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
+        self.all_info['sim_ego_yaw_rad'] = self.sim_ego_yaw #quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         self.all_info['sim_ego_speed'] = self.sim_ego_speed
         self.all_info['sim_ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
         sim_ego_pose = {
@@ -252,8 +256,6 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.sim_ego_quat_gb = self.r.current_agent_quat
         else:
             self.sim_ego_quat_gb = sim_ego_quat
-        #if self.sim_ego_quat_gb[-1] > 0:
-        #    self.sim_ego_quat_gb *= -1
         self.sim_ego_yaw = quaternion_yaw(Quaternion(self.sim_ego_quat_gb))
         
         # speed
@@ -433,6 +435,10 @@ class NuScenesDatasetEnv(NuScenesAgent):
             self.sim_ego_yaw += self.sim_ego_yaw_rate * 0.5
             
             q = np.array(Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw)).elements)
+            
+            # to prevent quaternion sign flip due to yaw crossing x-axisÚ
+            if np.linalg.norm(q-self.sim_ego_quat_gb) > 1.8:
+               q *= -1
                         
             self.sim_ego_quat_gb = q           
                         
