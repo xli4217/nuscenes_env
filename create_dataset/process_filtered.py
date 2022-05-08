@@ -204,6 +204,7 @@ def process_once(data_df_list=[], data_save_dir=None, config={}):
         #### add interactions ####
         filtered_df = interaction_filter(filtered_df)
         filtered_df.reset_index(drop=True, inplace=True)
+        
         ##########################
         # save filtered_scene_df #
         ##########################

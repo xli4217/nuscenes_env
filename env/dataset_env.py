@@ -438,7 +438,7 @@ class NuScenesDatasetEnv(NuScenesAgent):
             
             q = np.array(Quaternion(axis=[0,0,1], degrees=np.rad2deg(self.sim_ego_yaw)).elements)
             
-            # to prevent quaternion sign flip due to yaw crossing x-axisÚ
+            # to prevent quaternion sign flip due to yaw crossing x-axis
             if np.linalg.norm(q-self.sim_ego_quat_gb) > 1.8:
                q *= -1
                         

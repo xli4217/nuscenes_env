@@ -1146,8 +1146,12 @@ class NuScenesMapExplorer:
         cam_token = sample_record['data'][camera_channel]
         cam_record = nusc.get('sample_data', cam_token)
         cam_path = nusc.get_sample_data_path(cam_token)
-        im = Image.open(cam_path)
-        im_size = im.size
+        if not os.path.exists(cam_path):
+            im = np.zeros((3, 3))
+            im_size = im.shape
+        else:
+            im = Image.open(cam_path)
+            im_size = im.size
         cs_record = nusc.get('calibrated_sensor', cam_record['calibrated_sensor_token'])
         cam_intrinsic = np.array(cs_record['camera_intrinsic'])
 
