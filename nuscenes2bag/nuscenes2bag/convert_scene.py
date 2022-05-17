@@ -60,8 +60,9 @@ class ConvertScene(object):
             'figures':{
                 'bev/bev': {},
                 'ctrl/ctrl': {},
-                'input_images/past_raster':{},
-                'q_transitions/q_transitions':{}
+                'input_images/current_raster':{},
+                'q_transitions/q_transitions':{},
+                'agn_node_cams/agn_node_cams':{}
             },
             'sim_ego_pos': {},
             'sim_ego_quat': {}
@@ -90,7 +91,7 @@ class ConvertScene(object):
         
         experiment_result_dict['sim_ego_pos'] = sim_ego_pos
         experiment_result_dict['sim_ego_quat'] = sim_ego_quat
-        
+
         return experiment_result_dict
     
     def load_experiment_rollout_data_pandas(self, experiment_path: str):
@@ -131,10 +132,11 @@ class ConvertScene(object):
         
         return experiment_result_dict
     
-    def convert(self, scene_data_p, scene_name=None, model_name=None, up_to_step=None):
+    def convert(self, scene_data_p, scene_name=None, model_name=None, up_to_step=None, ckpt_name=None):
         self.scene_name = scene_name
         self.model_name = model_name
-        
+        self.ckpt_name = ckpt_name
+
         self.scene_data_p = scene_data_p
         self.experiment_result_dict = self.load_experiment_rollout_data(self.scene_data_p)
         #self.experiment_result_dict = self.load_experiment_rollout_data_pandas(self.scene_data_p)
@@ -176,7 +178,7 @@ class ConvertScene(object):
             [self.nusc_can.get_messages(scene_name, 'zoe_veh_info'), 0, lambda x: utils.get_basic_can_msg('Zoe Vehicle Info', x)],
         ]
 
-        bag_name = f"{self.config['scene_name']}.bag"
+        bag_name = f"{self.model_name}_{self.ckpt_name}_{self.config['scene_name']}.bag"
         bag_path = os.path.join(self.scene_data_p, bag_name)
         print(f'Writing to {bag_path}')
         bag = rosbag.Bag(bag_path, 'w', compression='lz4')
@@ -188,6 +190,7 @@ class ConvertScene(object):
         bag.write('/semantic_map', centerlines_msg, stamp)
         last_map_stamp = stamp
 
+        #idx = list(experiment_result_dict['sim_ego_pos'].keys())[0]
         idx = 0
         while cur_sample is not None:
             if up_to_step is not None and idx > up_to_step:
@@ -197,6 +200,7 @@ class ConvertScene(object):
             stamp = utils.get_time(ego_pose)
             
             #### write experiment_result to bag ####
+            ego_marker = None
             if experiment_result_dict is not None:
                 # figures #
                 for k,v in experiment_result_dict['figures'].items():
@@ -208,6 +212,8 @@ class ConvertScene(object):
                         msg.format = 'png'
                         msg.data = png
                         bag.write("/"+k+'/image_rect_compressed', msg, stamp)
+                #print(idx)
+                #print(experiment_result_dict['sim_ego_pos'].keys())
                 if idx in experiment_result_dict['sim_ego_pos'].keys():
                     ego_pose = {
                         'translation': experiment_result_dict['sim_ego_pos'][idx],
@@ -234,7 +240,7 @@ class ConvertScene(object):
                     # publish /tf
                     tf_array = utils.get_tfmessage(cur_sample, current_pose=ego_pose, next_pose=next_ego_pose)
                     bag.write('/tf', tf_array, stamp)
-                    
+
                 else:
                     # publish /tf
                     tf_array = utils.get_tfmessage(cur_sample)
@@ -282,16 +288,35 @@ class ConvertScene(object):
                 # elif sample_data['sensor_modality'] == 'lidar':
                 #     msg = utils.get_lidar(sample_data, sensor_id)
                 #     bag.write(topic, msg, stamp)
-                if sample_data['sensor_modality'] == 'camera':
-                    msg = utils.get_camera(sample_data, sensor_id, dataroot)
-                    bag.write(topic + '/image_rect_compressed', msg, stamp)
-                    msg = utils.get_camera_info(sample_data, sensor_id)
-                    bag.write(topic + '/camera_info', msg, stamp)
+                
+                # if sample_data['sensor_modality'] == 'camera':
+                #     msg = utils.get_camera(sample_data, sensor_id, dataroot)
+                #     bag.write(topic + '/image_rect_compressed', msg, stamp)
+                #     msg = utils.get_camera_info(sample_data, sensor_id)
+                #     bag.write(topic + '/camera_info', msg, stamp)
 
                 # if sample_data['sensor_modality'] == 'camera':
                 #     msg = utils.get_lidar_imagemarkers(sample_lidar, sample_data, sensor_id)
                 #     bag.write(topic + '/image_markers_lidar', msg, stamp)
                 #     utils.write_boxes_imagemarkers(bag, cur_sample['anns'], sample_data, sensor_id, topic, stamp)
+
+            # publish /markers/annotations
+            marker_array = MarkerArray()
+            
+            ego_marker = Marker()
+            ego_marker.header.frame_id = 'base_link'
+            ego_marker.header.stamp = stamp
+            ego_marker.id = 10000
+            ego_marker.text = 'ego'
+            ego_marker.type = Marker.CUBE
+            #ego_marker.pose = utils.get_pose(next_ego_pose)
+            ego_marker.frame_locked = True
+            ego_marker.scale.x = 4
+            ego_marker.scale.y = 1
+            ego_marker.scale.z = 2
+            ego_marker.color = utils.make_color((255,61,99), 0.5)
+            marker_array.markers.append(ego_marker)
+
 
             # publish /pose
             pose_stamped = PoseStamped()
@@ -312,8 +337,6 @@ class ConvertScene(object):
             gps.altitude = utils.get_transform(ego_pose).translation.z
             bag.write('/gps', gps, stamp)
 
-            # publish /markers/annotations
-            marker_array = MarkerArray()
             for annotation_id in cur_sample['anns']:
                 ann = self.nusc.get('sample_annotation', annotation_id)
                 marker_id = int(ann['instance_token'][:4], 16)
@@ -332,7 +355,7 @@ class ConvertScene(object):
                 marker.scale.z = ann['size'][2]
                 marker.color = utils.make_color(c, 0.5)
                 marker_array.markers.append(marker)
-            
+
             # ego marker #
             # marker = Marker()
             # marker.header.frame_id = 'map'
@@ -370,13 +393,14 @@ class ConvertScene(object):
                     # elif next_sample_data['sensor_modality'] == 'lidar':
                     #     msg = utils.get_lidar(next_sample_data, sensor_id)
                     #     non_keyframe_sensor_msgs.append((msg.header.stamp.to_nsec(), topic, msg))
-                    if next_sample_data['sensor_modality'] == 'camera':
-                        msg = utils.get_camera(next_sample_data, sensor_id, dataroot)
-                        camera_stamp_nsec = msg.header.stamp.to_nsec()
-                        non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/image_rect_compressed', msg))
+                    
+                    # if next_sample_data['sensor_modality'] == 'camera':
+                    #     msg = utils.get_camera(next_sample_data, sensor_id, dataroot)
+                    #     camera_stamp_nsec = msg.header.stamp.to_nsec()
+                    #     non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/image_rect_compressed', msg))
 
-                        msg = utils.get_camera_info(next_sample_data, sensor_id)
-                        non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/camera_info', msg))
+                    #     msg = utils.get_camera_info(next_sample_data, sensor_id)
+                    #     non_keyframe_sensor_msgs.append((camera_stamp_nsec, topic + '/camera_info', msg))
 
                         # closest_lidar = utils.find_closest_lidar(cur_sample['data']['LIDAR_TOP'], camera_stamp_nsec)
                         # if closest_lidar is not None:
@@ -411,7 +435,8 @@ def convert(
     model_name = '',
     ckpt_name = '',
     scene_name = '',
-    up_to_step = None
+    up_to_step = None,
+    convert_list=False
 ):
     # for scene in nusc.scene:
     #     convert_scene(scene)
@@ -431,9 +456,28 @@ def convert(
     }
 
     converter = ConvertScene(config)
-    
-    scene_data_p = os.path.join(datap, 'supercloud_data', model_name, ckpt_name, scene_name)
-    converter.convert(scene_data_p=scene_data_p, scene_name=scene_name, up_to_step=up_to_step)
+
+    if not convert_list:    
+        scene_data_p = os.path.join(datap, 'supercloud_data', model_name, ckpt_name, scene_name)
+        converter.convert(
+            scene_data_p=scene_data_p, 
+            model_name=model_name,
+            scene_name=scene_name, 
+            up_to_step=up_to_step, 
+            ckpt_name=ckpt_name
+        )
+    else:
+        for mn in ['Ours', 'RvS']:
+            for sn in ["scene-1000","scene-0429","scene-0068","scene-0517"]:
+                scene_data_p = os.path.join(datap, 'supercloud_data', mn, ckpt_name, sn)
+                converter.convert(
+                    scene_data_p=scene_data_p, 
+                    model_name=mn,
+                    scene_name=sn, 
+                    up_to_step=up_to_step, 
+                    ckpt_name=ckpt_name
+                )
+
 
     
 if __name__ == "__main__":
