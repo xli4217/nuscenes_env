@@ -467,7 +467,11 @@ def convert(
             ckpt_name=ckpt_name
         )
     else:
-        for mn in ['Ours', 'RvS']:
+        model_list = [
+            'Ours', 
+            #'RvS'
+        ]
+        for mn in model_list:
             for sn in ["scene-1000","scene-0429","scene-0068","scene-0517"]:
                 scene_data_p = os.path.join(datap, 'supercloud_data', mn, ckpt_name, sn)
                 converter.convert(

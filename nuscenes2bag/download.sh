@@ -9,20 +9,23 @@ declare -a Scenes=(
 
 declare -a Models=(
     #"AgnPlanner_agn_dmp_dmp_param_learn" \
-    "AgnPlanner_ctrl_layer_gaussian_action_lstm_goal_conditioned"
+    #"AgnPlanner_ctrl_layer_gaussian_action_lstm_goal_conditioned"
+    "AgnPlanner_agn_dmp_dmp_param_learn_silu"
 )
 
 declare -a ModelNames=(
-    #"Ours" \ 
-    "RvS"
+    "Ours" \ 
+    #"RvS"
 )
 
 declare -a CKPT=(
     #"epoch=6-step=1861" \
-    "epoch=7-step=2127"
+    #"epoch=7-step=2127"
+    "epoch=169-step=45219"
 )
 
-experiment_root_dir="/home/gridsan/xiaoli/TRI/ppc/experiments/abalation"
+#experiment_root_dir="/home/gridsan/xiaoli/TRI/ppc/experiments/abalation"
+experiment_root_dir="/home/gridsan/xiaoli/TRI/ppc/experiments/testing"
 
 # Iterate the string array using for loop
 for i in ${!Models[@]}; do
