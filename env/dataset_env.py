@@ -118,12 +118,21 @@ class NuScenesDatasetEnv(NuScenesAgent):
         self.all_info['ego_pos_gb'] = self.r.current_agent_pos
         self.all_info['ego_quat_gb'] = self.r.current_agent_quat
         self.all_info['ego_pos_traj'] = np.vstack([self.r.past_agent_pos, self.r.current_agent_pos[np.newaxis], self.r.future_agent_pos])
+        self.all_info['all_ego_pos_traj'] = np.array(self.scene_data.query("agent_token=='ego'").current_agent_pos.tolist())
+        #self.all_info['ego_speed_traj'] = np.vstack([self.r.past_agent_speed, self.r.current_agent_speed, self.r.future_agent_speed])
+        
         self.all_info['ego_speed'] = self.r.current_agent_speed
         self.all_info['past_ego_pos'] = self.r.past_agent_pos
         
         self.all_info['ego_raster_image'] = plt.imread(os.path.join(self.config['raster_dir'], str(self.r.current_agent_raster_path)))
         self.all_info['ego_yaw_rate'] = self.r.current_agent_steering
-        self.all_info['current_ego_neighbor_pos'] = self.r.current_neighbor_pos
+        
+        # neigbhors #
+        self.all_info['current_neighbor_pos'] = self.r.current_neighbor_pos
+        self.all_info['current_neighbor_quat'] = self.r.current_neighbor_quat
+        self.all_info['current_neighbor_speed'] = self.r.current_neighbor_speed
+        #self.all_info['current_neighbor_tokens'] = 
+        
         self.all_info['ego_future_lanes'] = get_future_lanes(self.map, 
                                                              self.r.current_agent_pos, 
                                                              self.r.current_agent_quat, 
